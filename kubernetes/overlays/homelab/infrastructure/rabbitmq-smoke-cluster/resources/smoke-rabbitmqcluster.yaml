@@ -1,0 +1,102 @@
+# Smoke probe: 1-replica cluster validating cluster-operator + MTO + PNI wiring.
+# Delete once the first real consumer onboards via PNI capability rabbitmq-managed.
+# Not a production-shaped cluster — single replica, Mnesia not HA, no quorum.
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq-smoke
+  namespace: rabbitmq-system
+  labels:
+    app.kubernetes.io/name: rabbitmq-smoke
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: rabbitmq
+    app.kubernetes.io/part-of: rabbitmq
+    app.kubernetes.io/managed-by: argocd
+spec:
+  replicas: 1
+  override:
+    statefulSet:
+      spec:
+        template:
+          metadata:
+            labels:
+              # PNI provider label — selected by ccnp-pni-rabbitmq-managed-consumer-egress
+              # and ccnp-pni-rabbitmq-operator-dataplane-egress. Pod-template label
+              # change triggers an STS rolling restart of broker pods.
+              platform.io/capability-provider.rabbitmq-managed: "true"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  persistence:
+    storageClassName: linstor-csi
+    storage: 1Gi
+  rabbitmq:
+    additionalConfig: |
+      prometheus.return_per_object_metrics = true
+      deprecated_features.permit.management_metrics_collection = false
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: rabbitmq-smoke-server
+  namespace: rabbitmq-system
+  labels:
+    app.kubernetes.io/name: rabbitmq-smoke
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/component: rabbitmq
+      app.kubernetes.io/part-of: rabbitmq
+  ingress:
+    # kubelet liveness/readiness probes
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "5672"
+              protocol: TCP
+            - port: "15672"
+              protocol: TCP
+            - port: "15692"
+              protocol: TCP
+    # Prometheus metrics scrape on 15692
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "15692"
+              protocol: TCP
+    # messaging-topology-operator reconcile via management API + AMQP
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: rabbitmq-system
+            app.kubernetes.io/name: messaging-topology-operator
+      toPorts:
+        - ports:
+            - port: "15672"
+              protocol: TCP
+            - port: "15671"
+              protocol: TCP
+    # Consumers opting into rabbitmq-managed capability
+    - fromEndpoints:
+        - matchLabels:
+            platform.io/capability-consumer.rabbitmq-managed: "true"
+      toPorts:
+        - ports:
+            - port: "5672"
+              protocol: TCP
+            - port: "5671"
+              protocol: TCP
+            - port: "15672"
+              protocol: TCP
+            - port: "15671"
+              protocol: TCP

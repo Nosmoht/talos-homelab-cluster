@@ -1,0 +1,44 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: external-httproute-hostnames-enforce
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: kyverno-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: external-https-hostnames-must-match-cluster-domain
+      match:
+        any:
+          - resources:
+              kinds:
+                - HTTPRoute
+      context:
+        - name: clusterConfig
+          configMap:
+            name: cluster-config
+            namespace: kyverno
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.parentRefs[?sectionName == 'external-https'] | length(@) }}"
+            operator: GreaterThan
+            value: "0"
+      validate:
+        message: >-
+          HTTPRoute attached to the external-https listener (sectionName=external-https)
+          must only declare hostnames matching the cluster domain pattern
+          {{ clusterConfig.data.external_hostname_pattern }}. The external listener
+          is the public ingress path; any other hostname would either never match
+          (dead route) or leak internal hostnames to the public attack surface. If you
+          need an internal route, attach to sectionName=https instead.
+        foreach:
+          - list: "request.object.spec.hostnames || `[]`"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ regex_match('{{ clusterConfig.data.external_hostname_pattern }}', '{{ element }}') }}"
+                    operator: Equals
+                    value: false

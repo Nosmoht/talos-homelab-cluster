@@ -1,0 +1,10 @@
+apiVersion: viaduct.ai/v1
+kind: ksops
+metadata:
+  name: minio-env-configuration-secret
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: ksops
+files:
+  - secret-minio-env-configuration.sops.yaml

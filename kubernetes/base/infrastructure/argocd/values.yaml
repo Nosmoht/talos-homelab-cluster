@@ -1,0 +1,71 @@
+crds:
+  install: true
+  keep: true
+
+server:
+  certificate:
+    enabled: true
+    issuer:
+      group: cert-manager.io
+      kind: ClusterIssuer
+      name: vault-internal
+    privateKey:
+      algorithm: ECDSA
+      size: 256
+    duration: 2160h
+    renewBefore: 720h
+  service:
+    type: ClusterIP
+
+repoServer:
+  env:
+    - name: SOPS_AGE_KEY_FILE
+      value: /sops-age/keys.txt
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
+    - name: sops-age
+      secret:
+        secretName: sops-age-key
+  volumeMounts:
+    - name: custom-tools
+      mountPath: /usr/local/bin/ksops
+      subPath: ksops
+    - name: sops-age
+      mountPath: /sops-age
+      readOnly: true
+  initContainers:
+    - name: install-ksops
+      image: viaductoss/ksops:v4.3.2
+      command: ["/bin/sh", "-c"]
+      args:
+        - cp /usr/local/bin/ksops /custom-tools/
+      volumeMounts:
+        - name: custom-tools
+          mountPath: /custom-tools
+
+configs:
+  rbac:
+    policy.default: ''
+    policy.csv: |
+      g, nosmoht, role:admin
+    scopes: '[preferred_username]'
+  params:
+    server.insecure: true
+    server.dex.server.strict.tls: "false"
+    server.repo.server.strict.tls: "false"
+  cm:
+    admin.enabled: "true"
+    resource.compareoptions: |
+      serverSideDiff: true
+    resource.customizations.ignoreDifferences.apps_Deployment: |
+      jqPathExpressions:
+        - '.status.terminatingReplicas'
+    kustomize.buildOptions: "--enable-alpha-plugins --enable-exec"
+    resource.exclusions: |
+      - apiGroups:
+          - cilium.io
+        kinds:
+          - CiliumIdentity
+        clusters:
+          - "*"

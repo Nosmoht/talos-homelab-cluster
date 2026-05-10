@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rabbitmq-smoke-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    app.kubernetes.io/name: rabbitmq-smoke-cluster
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+      targetRevision: main
+      path: kubernetes/overlays/homelab/infrastructure/rabbitmq-smoke-cluster/resources
+      ref: cluster
+      helm:
+        valueFiles: []
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      helm:
+        valueFiles: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rabbitmq-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

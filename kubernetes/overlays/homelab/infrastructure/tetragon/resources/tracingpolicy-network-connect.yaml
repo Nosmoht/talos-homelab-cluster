@@ -1,0 +1,31 @@
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: network-connect-external
+  labels:
+    app.kubernetes.io/name: tetragon
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: runtime-security
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchExpressions:
+      - key: io.kubernetes.pod.namespace
+        operator: In
+        values:
+          - kube-system
+          - argocd
+          - tetragon
+  kprobes:
+    - call: "tcp_connect"
+      syscall: false
+      return: false
+      args:
+        - index: 0
+          type: "sock"
+          maxData: false
+          resolve: ""
+          returnCopy: false
+      # No selectors: trace all TCP connections from matched pods (kube-system, argocd, tetragon).
+      # Note: gVisor-sandboxed pods bypass tcp_connect in the host kernel and are not visible here.

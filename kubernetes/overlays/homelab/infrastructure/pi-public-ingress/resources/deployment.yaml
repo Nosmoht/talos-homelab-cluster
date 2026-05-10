@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pi-public-ingress
+  namespace: public-ingress
+  labels:
+    app.kubernetes.io/name: pi-public-ingress
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/version: "1.29"
+    app.kubernetes.io/component: l4-proxy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pi-public-ingress
+      app.kubernetes.io/instance: homelab
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pi-public-ingress
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/version: "1.29"
+        app.kubernetes.io/component: l4-proxy
+        app.kubernetes.io/part-of: homelab
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # Pin strictly to node-pi-01 — single-host WAN entrypoint.
+      nodeSelector:
+        kubernetes.io/hostname: node-pi-01
+      # Tolerate the pi-reserved taint (other pods can't).
+      tolerations:
+        - key: homelab.io/pi-reserved
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        # H1: nginx master + workers all run as uid 101 (nginx). Binding
+        # :443 as non-root works because the Pi-local Talos sysctl
+        # net.ipv4.ip_unprivileged_port_start=443 (see talos/patches/
+        # pi-firewall.yaml) lowers the host netns privileged-port barrier
+        # to 443. Capabilities.add is empty — drop:[ALL] is the effective
+        # Linux-cap posture.
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          # Image digest-pinned to the nginx:1.29.8-alpine manifest-list
+          # (retrieved via Docker Hub API — multi-arch, includes linux/arm64/v8
+          # sub-digest sha256:7dd09a6c…0be8). 1.29.8 addresses three open
+          # stream-module CVEs absent from the prior 1.27-alpine floating tag:
+          # CVE-2025-23419 (SSL session reuse, fix 1.27.4+),
+          # CVE-2026-28755 (OCSP stream bypass, fix 1.29.7+),
+          # CVE-2026-1642 (SSL upstream race, fix 1.29.5+).
+          # Pinning by digest prevents supply-chain tag-repush risk.
+          image: nginx:1.29.8-alpine@sha256:8aa63af009a39ecd6c28d61da578a5447378c10bb097a069e3a3e0fb42bb6b19
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: https
+              containerPort: 443
+              hostPort: 443
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 64Mi
+      volumes:
+        - name: config
+          configMap:
+            name: pi-public-ingress-config
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}

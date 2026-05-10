@@ -1,0 +1,31 @@
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: process-exec-privileged-namespaces
+  labels:
+    app.kubernetes.io/name: tetragon
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: runtime-security
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchExpressions:
+      - key: io.kubernetes.pod.namespace
+        operator: In
+        values:
+          - kube-system
+          - argocd
+          - tetragon
+  kprobes:
+    - call: "sys_execve"
+      syscall: true
+      return: false
+      args:
+        - index: 0
+          type: "string"
+          maxData: false
+          resolve: ""
+          returnCopy: false
+      selectors:
+        - matchArgs: []

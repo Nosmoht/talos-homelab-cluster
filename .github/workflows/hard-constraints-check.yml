@@ -1,0 +1,73 @@
+name: Hard Constraints Check
+
+# Enforces cluster-wide invariants from AGENTS.md §Hard Constraints.
+# Runs on PR diffs only — does not scan the entire repo history.
+# Must be added as a required status check in Branch Protection Rules.
+# Settings → Branches → main → Require status checks → "Hard Constraints Check / hard-constraints"
+
+on:
+  pull_request:
+    paths:
+      - 'kubernetes/**'
+      - 'talos/**'
+
+permissions:
+  contents: read
+
+jobs:
+  hard-constraints:
+    name: Hard Constraints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check forbidden Kubernetes kinds (Ingress, Endpoints)
+        run: |
+          set -euo pipefail
+          FAIL=0
+          CHANGED_K8S=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'kubernetes/**' 2>/dev/null || true)
+          if [ -n "$CHANGED_K8S" ]; then
+            MATCHES=$(echo "$CHANGED_K8S" | xargs grep -lE '^kind:\s*(Ingress|Endpoints)\b' 2>/dev/null || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::error::Forbidden resource kind (Ingress or Endpoints) detected in:"
+              echo "$MATCHES"
+              echo "Fix: Use HTTPRoute/TLSRoute (Gateway API) instead of Ingress; use EndpointSlice instead of Endpoints."
+              FAIL=1
+            fi
+          fi
+          exit $FAIL
+
+      - name: Check forbidden Talos installer image (SecureBoot)
+        run: |
+          set -euo pipefail
+          FAIL=0
+          CHANGED_TALOS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'talos/**' 2>/dev/null || true)
+          if [ -n "$CHANGED_TALOS" ]; then
+            MATCHES=$(echo "$CHANGED_TALOS" | xargs grep -l 'metal-installer-secureboot' 2>/dev/null || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::error::Forbidden SecureBoot installer image (metal-installer-secureboot) detected in:"
+              echo "$MATCHES"
+              echo "Fix: Use metal-installer (SecureBoot causes boot loops on this cluster)."
+              FAIL=1
+            fi
+          fi
+          exit $FAIL
+
+      - name: Check forbidden kernel boot parameter (debugfs=off)
+        run: |
+          set -euo pipefail
+          FAIL=0
+          CHANGED_ALL=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'kubernetes/**' 'talos/**' 2>/dev/null || true)
+          if [ -n "$CHANGED_ALL" ]; then
+            MATCHES=$(echo "$CHANGED_ALL" | xargs grep -l 'debugfs=off' 2>/dev/null || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::error::Forbidden kernel boot parameter (debugfs=off) detected in:"
+              echo "$MATCHES"
+              echo "Fix: Remove debugfs=off — it causes 'failed to create root filesystem' boot loops with Cilium."
+              FAIL=1
+            fi
+          fi
+          exit $FAIL

@@ -1,0 +1,14 @@
+{
+  "talos_version": "v1.12.6",
+  "checked_at": "2026-03-24",
+  "extensions": {
+    "siderolabs/nvidia-open-gpu-kernel-modules-lts": {
+      "ref": "ghcr.io/siderolabs/nvidia-open-gpu-kernel-modules-lts:580.126.20-v1.12.6",
+      "digest": "sha256:fd88db1ec64377803d34694397b75d8e8b266fcceb4a0f79bc559af359b080b8"
+    },
+    "siderolabs/nvidia-container-toolkit-lts": {
+      "ref": "ghcr.io/siderolabs/nvidia-container-toolkit-lts:580.126.20-v1.18.2",
+      "digest": "sha256:c2637813917dcacdb5838e3f38467a3646f35aad9b12cf09447875318f9c5ce5"
+    }
+  }
+}

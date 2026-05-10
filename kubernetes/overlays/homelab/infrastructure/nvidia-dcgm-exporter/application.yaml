@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nvidia-dcgm-exporter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app.kubernetes.io/name: nvidia-dcgm-exporter
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts
+      chart: dcgm-exporter
+      targetRevision: 4.8.1
+      helm:
+        valueFiles:
+          - $base/kubernetes/base/infrastructure/nvidia-dcgm-exporter/values.yaml
+    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+      targetRevision: main
+      ref: cluster
+      helm:
+        valueFiles: []
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      helm:
+        valueFiles: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nvidia-dcgm-exporter
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true

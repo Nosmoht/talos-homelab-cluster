@@ -1,0 +1,53 @@
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: file-access-sensitive-paths
+  labels:
+    app.kubernetes.io/name: tetragon
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: runtime-security
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchExpressions:
+      - key: io.kubernetes.pod.namespace
+        operator: In
+        values:
+          - kube-system
+          - argocd
+          - tetragon
+          - piraeus-datastore
+          - cert-manager
+  kprobes:
+    - call: "sys_openat"
+      syscall: true
+      return: false
+      args:
+        - index: 0
+          type: "int"
+          maxData: false
+          resolve: ""
+          returnCopy: false
+        - index: 1
+          type: "string"
+          maxData: false
+          resolve: ""
+          returnCopy: false
+        - index: 2
+          type: "int"
+          maxData: false
+          resolve: ""
+          returnCopy: false
+      selectors:
+        - matchArgs:
+            - index: 1
+              operator: "Prefix"
+              values:
+                - "/etc/shadow"
+                - "/etc/passwd"
+                - "/etc/sudoers"
+                - "/var/run/secrets/kubernetes.io"
+                - "/root/.ssh"
+                - "/home/"
+                - "/etc/ssh"

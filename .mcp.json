@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "stdio",
+      "command": "mcp-github-wrapper",
+      "args": []
+    },
+    "kubernetes-mcp-server": {
+      "type": "stdio",
+      "command": "kubernetes-mcp-server",
+      "args": ["--read-only", "--disable-multi-cluster"]
+    },
+    "talos": {
+      "type": "stdio",
+      "command": "talos-mcp",
+      "args": [],
+      "env": {
+        "TALOS_CONTEXT": "homelab",
+        "TALOS_MCP_ALLOWED_PATHS": "/proc,/sys,/var/log,/run,/usr/local/etc,/etc/os-release"
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+cluster:
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
+machine:
+  features:
+    kubePrism:
+      enabled: true
+      port: 7445
+  kubelet:
+    extraArgs:
+      rotate-server-certificates: true
+  network:
+    disableSearchDomain: true
+  registries:
+    # docker.io resolves AAAA-only on this network and nodes have no working
+    # IPv6 egress — pulls fail with "network is unreachable". Redirect to
+    # Google's transparent docker.io mirror (IPv4-reachable, no auth required).
+    mirrors:
+      docker.io:
+        endpoints:
+          - https://mirror.gcr.io
+  sysctls:
+    # --- Performance: Storage I/O (dirty page tuning for SSD/NVMe) ---
+    vm.dirty_ratio: "10"
+    vm.dirty_background_ratio: "5"
+    vm.dirty_expire_centisecs: "1500"
+    vm.dirty_writeback_centisecs: "300"
+    # --- Performance: Memory Management ---
+    vm.overcommit_memory: "1"
+    vm.panic_on_oom: "0"
+    vm.max_map_count: "524288"
+    vm.min_free_kbytes: "65536"
+    # --- Performance: TCP Buffers (critical for DRBD replication) ---
+    net.core.rmem_max: "16777216"
+    net.core.wmem_max: "16777216"
+    net.core.rmem_default: "1048576"
+    net.core.wmem_default: "1048576"
+    net.ipv4.tcp_rmem: "4096 1048576 16777216"
+    net.ipv4.tcp_wmem: "4096 1048576 16777216"
+    net.core.optmem_max: "2097152"
+    # --- Performance: TCP Behavior ---
+    net.ipv4.tcp_slow_start_after_idle: "0"
+    net.ipv4.tcp_tw_reuse: "1"
+    net.ipv4.ip_local_port_range: "1024 65535"
+    net.ipv4.tcp_fastopen: "3"
+    net.ipv4.tcp_mtu_probing: "1"
+    net.ipv4.tcp_keepalive_time: "600"
+    net.ipv4.tcp_keepalive_intvl: "30"
+    net.ipv4.tcp_keepalive_probes: "10"
+    # --- Performance: Connection Handling & Backlog ---
+    net.core.somaxconn: "32768"
+    net.core.netdev_max_backlog: "16384"
+    net.ipv4.tcp_max_syn_backlog: "8192"
+    # --- Performance: Conntrack ---
+    net.netfilter.nf_conntrack_max: "131072"
+    # --- Performance: ARP Cache ---
+    net.ipv4.neigh.default.gc_thresh1: "1024"
+    net.ipv4.neigh.default.gc_thresh2: "2048"
+    net.ipv4.neigh.default.gc_thresh3: "4096"
+    # --- Performance: Filesystem & Process Limits ---
+    fs.inotify.max_user_watches: "524288"
+    fs.inotify.max_user_instances: "8192"
+    fs.file-max: "2097152"
+    kernel.pid_max: "4194304"
+    # --- Security: IP Spoofing Protection ---
+    # Cilium BPF datapath handles source validation; kernel rp_filter
+    # causes false-positive martian drops on pod lxc interfaces
+    net.ipv4.conf.all.rp_filter: "0"
+    net.ipv4.conf.default.rp_filter: "0"
+    # --- Security: ICMP Hardening ---
+    net.ipv4.icmp_echo_ignore_broadcasts: "1"
+    net.ipv4.icmp_ignore_bogus_error_responses: "1"
+    # --- Security: SYN Flood Protection ---
+    net.ipv4.tcp_syncookies: "1"
+    # --- Security: TIME-WAIT Assassination Protection (RFC 1337) ---
+    net.ipv4.tcp_rfc1337: "1"
+    # --- Security: Disable ICMP Redirects (MITM prevention) ---
+    net.ipv4.conf.all.accept_redirects: "0"
+    net.ipv4.conf.default.accept_redirects: "0"
+    net.ipv4.conf.all.secure_redirects: "0"
+    net.ipv4.conf.default.secure_redirects: "0"
+    net.ipv6.conf.all.accept_redirects: "0"
+    net.ipv6.conf.default.accept_redirects: "0"
+    net.ipv4.conf.all.send_redirects: "0"
+    net.ipv4.conf.default.send_redirects: "0"
+    # --- Security: Disable Source Routing ---
+    net.ipv4.conf.all.accept_source_route: "0"
+    net.ipv4.conf.default.accept_source_route: "0"
+    net.ipv6.conf.all.accept_source_route: "0"
+    net.ipv6.conf.default.accept_source_route: "0"
+    # --- Security: Log Martian Packets ---
+    # Disabled: Cilium BPF routing triggers false-positive martian
+    # warnings on pod interfaces, flooding kernel logs
+    net.ipv4.conf.all.log_martians: "0"
+    net.ipv4.conf.default.log_martians: "0"
+    # --- Security: Disable IPv6 Router Advertisements ---
+    net.ipv6.conf.all.accept_ra: "0"
+    net.ipv6.conf.default.accept_ra: "0"
+    # --- Security: Kernel Hardening ---
+    kernel.kexec_load_disabled: "1"
+    kernel.sysrq: "0"
+    kernel.core_pattern: "|/bin/false"
+    # --- Security: Memory Protection (increase ASLR entropy) ---
+    vm.mmap_rnd_bits: "32"
+    vm.mmap_rnd_compat_bits: "16"

@@ -1,0 +1,164 @@
+# Cilium Helm values for homelab cluster bootstrap manifest.
+# Used by scripts/render-cilium-bootstrap.sh to render
+# kubernetes/bootstrap/cilium/cilium.yaml via helm template.
+#
+# Only non-default values are listed. Chart defaults apply for everything else.
+
+# --- CNI ---
+cni:
+  exclusive: false
+
+# --- Kube-proxy replacement ---
+kubeProxyReplacement: "true"
+k8sServiceHost: "127.0.0.1"
+k8sServicePort: "7445"
+
+# --- IPAM ---
+ipam:
+  mode: "kubernetes"
+
+# --- Gateway API ---
+gatewayAPI:
+  enabled: true
+  enableAppProtocol: true
+  hostNetwork:
+    enabled: true
+    nodes:
+      matchLabels:
+        node-role.kubernetes.io/gateway: ""
+
+# --- Envoy ---
+# Disable standalone Envoy DaemonSet. Envoy runs embedded in cilium-agent.
+# Gateway listeners are configured via CiliumEnvoyConfig with nodeSelector.
+envoy:
+  enabled: false
+  securityContext:
+    capabilities:
+      keepCapNetBindService: true
+
+# --- Policy secrets ---
+policySecrets:
+  enabled: true
+
+# --- Encryption ---
+encryption:
+  enabled: true
+  type: wireguard
+  wireguard:
+    userspaceFallback: false
+  strictMode:
+    enabled: true
+    cidr: "10.244.0.0/16"
+    allowRemoteNodeIdentities: true
+
+# --- Hubble ---
+hubble:
+  enabled: true
+  metrics:
+    enabled:
+      - "dns:query;ignoreAAAA"
+      - drop
+      - tcp
+      - flow
+      - port-distribution
+      - icmp
+      - httpV2
+  tls:
+    auto:
+      method: cronJob
+      schedule: "0 0 1 */4 *"
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+  export:
+    dynamic:
+      enabled: true
+      config:
+        content:
+          - name: dropped-flows
+            fieldMask:
+              - source
+              - destination
+              - verdict
+              - drop_reason
+              - l4
+              - IP
+              - time
+            includeFilters:
+              - verdict:
+                  - DROPPED
+            filePath: /var/run/cilium/hubble/dropped.log
+          - name: dns-flows
+            fieldMask:
+              - source
+              - destination
+              - verdict
+              - l7
+              - time
+            includeFilters:
+              - protocol:
+                  - DNS
+            filePath: /var/run/cilium/hubble/dns.log
+
+# --- Security context ---
+# Remove SYS_MODULE — causes "operation not permitted" on some nodes
+# (runc rejects the capability). Not needed with kube-proxy replacement.
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+# --- BPF ---
+# VLAN bypass: allow tagged packets through eBPF without dropping.
+# Required for VLAN sub-interfaces (e.g., KubeVirt VM networking on VLAN 100).
+# Without this, Cilium's eBPF programs drop 802.1Q-tagged packets on the physical NIC.
+bpf:
+  vlanBypass:
+    - 100
+    - 110
+    - 120
+    - 130
+
+# --- L2 announcements / LoadBalancer ---
+# Enable Cilium as the L2 announcer for Service type=LoadBalancer VIPs.
+# Replaces kube-vip / MetalLB for L2 ARP announcements on the homelab LAN.
+l2announcements:
+  enabled: true
+loadBalancer:
+  l2:
+    enabled: true
+
+# --- cilium-secrets Namespace labels ---
+# PNI contract (platform.io/network-interface-version + network-profile) is required by
+# the pni-contract-enforce Kyverno policy. Without these labels, `talosctl upgrade-k8s`
+# re-applying the bootstrap manifest is denied at admission.
+# PSA labels match the live state and prevent non-SSA apply from stripping them.
+secretsNamespaceLabels:
+  platform.io/network-interface-version: v1
+  platform.io/network-profile: privileged
+  pod-security.kubernetes.io/enforce: restricted
+  pod-security.kubernetes.io/enforce-version: latest
+  pod-security.kubernetes.io/audit: restricted
+  pod-security.kubernetes.io/audit-version: latest
+  pod-security.kubernetes.io/warn: restricted
+  pod-security.kubernetes.io/warn-version: latest
+
+# --- Operator ---
+operator:
+  replicas: 2

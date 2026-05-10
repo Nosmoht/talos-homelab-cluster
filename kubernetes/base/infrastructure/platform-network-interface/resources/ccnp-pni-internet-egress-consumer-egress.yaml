@@ -1,0 +1,34 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-internet-egress-consumer-egress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  description: "PNI: Allow pods in opted-in namespaces to reach the public internet"
+  endpointSelector:
+    matchLabels:
+      k8s:io.cilium.k8s.namespace.labels.platform.io/consume.internet-egress: "true"
+      k8s:io.cilium.k8s.namespace.labels.platform.io/network-interface-version: "v1"
+      platform.io/capability-consumer.internet-egress: "true"
+  egress:
+    # Public internet only (RFC1918 excluded)
+    - toCIDRSet:
+        - cidr: 0.0.0.0/0
+          except:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

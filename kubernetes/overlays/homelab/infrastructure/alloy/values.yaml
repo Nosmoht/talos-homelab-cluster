@@ -1,0 +1,90 @@
+alloy:
+  configMap:
+    # Override the loki.write external_labels to add the cluster identity label.
+    # The full content is reproduced here because Helm string values are replaced,
+    # not merged. The base values.yaml has external_labels = {} (cluster-agnostic).
+    content: |
+      local.file_match "pods" {
+        path_targets = [
+          {"__path__" = "/var/log/pods/*/*/*.log"},
+        ]
+      }
+
+      local.file_match "cilium_hubble" {
+        path_targets = [
+          {
+            "__path__" = "/var/log/pods/kube-system_cilium-*/cilium-agent/*.log",
+            "job" = "cilium-hubble",
+          },
+        ]
+      }
+
+      loki.process "pods" {
+        stage.cri {}
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.process "cilium_hubble" {
+        stage.cri {}
+
+        stage.json {
+          expressions = {
+            source_ip = "flow.IP.source",
+            destination_ip = "flow.IP.destination",
+            source_namespace = "flow.source.namespace",
+            destination_namespace = "flow.destination.namespace",
+            verdict = "flow.verdict",
+            traffic_direction = "flow.traffic_direction",
+            destination_port_tcp = "flow.l4.TCP.destination_port",
+            destination_port_udp = "flow.l4.UDP.destination_port",
+            http_method = "flow.l7.http.method",
+            http_url = "flow.l7.http.url",
+            dns_query = "flow.l7.dns.query",
+          }
+          drop_malformed = true
+        }
+
+        stage.drop {
+          source = "source_ip"
+          expression = "^$"
+        }
+
+        stage.geoip {
+          source = "source_ip"
+          db = "/var/lib/alloy/geoip/GeoIP.mmdb"
+          db_type = "country"
+        }
+
+        stage.labels {
+          values = {
+            job = "job",
+            verdict = "verdict",
+            traffic_direction = "traffic_direction",
+            source_namespace = "source_namespace",
+            destination_namespace = "destination_namespace",
+            geoip_country_code = "geoip_country_code",
+            geoip_country_name = "geoip_country_name",
+          }
+        }
+
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.source.file "pods" {
+        targets    = local.file_match.pods.targets
+        forward_to = [loki.process.pods.receiver]
+      }
+
+      loki.source.file "cilium_hubble" {
+        targets    = local.file_match.cilium_hubble.targets
+        forward_to = [loki.process.cilium_hubble.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc/loki/api/v1/push"
+        }
+        external_labels = {
+          cluster = "homelab",
+        }
+      }

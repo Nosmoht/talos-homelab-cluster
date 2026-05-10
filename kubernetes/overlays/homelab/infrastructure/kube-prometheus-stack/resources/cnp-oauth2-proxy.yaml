@@ -1,0 +1,79 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: oauth2-proxy
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - prometheus-oauth2-proxy
+          - alertmanager-oauth2-proxy
+  ingress:
+    # Direct local LAN access plus SNATed LB forwarding from cluster PodCIDR
+    - fromCIDRSet:
+        - cidr: 192.168.2.0/24
+        - cidr: 10.244.0.0/16
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+    # Cilium may classify cross-node LB forwarding as world on backend nodes
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+    # Gateway proxy traffic (Cilium external Envoy proxy uses reserved:ingress identity)
+    - fromEntities:
+        - ingress
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+  egress:
+    # Prometheus upstream
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "9090"
+              protocol: TCP
+    # Alertmanager upstream
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: alertmanager
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+    # Dex OIDC
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: dex
+            app.kubernetes.io/name: dex
+      toPorts:
+        - ports:
+            - port: "5556"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

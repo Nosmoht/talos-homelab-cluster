@@ -1,0 +1,61 @@
+name: skill-frontmatter-check
+
+on:
+  pull_request:
+    paths:
+      - '.claude/skills/**/SKILL.md'
+      - 'docs/primitive-contract.md'
+      - '.github/workflows/skill-frontmatter-check.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.45.1
+
+      - name: Validate primitive contract has schema_version
+        id: contract
+        run: |
+          # Markdown body trips yq on the file directly; extract frontmatter first.
+          version=$(awk '/^---$/{n++; next} n==1' docs/primitive-contract.md | yq e '.schema_version' -)
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::error::docs/primitive-contract.md missing schema_version field"
+            exit 1
+          fi
+          echo "Contract schema_version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Phase-1a skill frontmatter
+        run: |
+          set -e
+          PHASE_1A_SKILLS=(
+            nic-health-audit
+            link-flap-detector
+            irq-affinity-auditor
+            kernel-param-auditor
+          )
+          fail=0
+          checked=0
+          for skill in "${PHASE_1A_SKILLS[@]}"; do
+            file=".claude/skills/${skill}/SKILL.md"
+            if [ ! -f "$file" ]; then
+              echo "::notice::skip (not yet created): $file"
+              continue
+            fi
+            checked=$((checked + 1))
+            echo "→ validating $file"
+            if ! awk '/^---$/{n++; next} n==1' "$file" \
+              | yq e -e ".name == \"${skill}\" and .description != null and .[\"disable-model-invocation\"] == true and (.[\"allowed-tools\"] | type) == \"!!seq\"" - >/dev/null; then
+              echo "::error file=${file}::frontmatter validation failed (missing required keys or wrong types)"
+              fail=1
+            fi
+          done
+          if [ "$checked" -eq 0 ]; then
+            echo "::warning::no Phase-1a skills found to validate"
+          elif [ "$fail" -eq 0 ]; then
+            echo "Phase-1a skill frontmatter OK ($checked skills validated)"
+          fi
+          exit "$fail"

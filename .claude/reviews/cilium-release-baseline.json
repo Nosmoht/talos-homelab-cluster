@@ -1,0 +1,9 @@
+{
+  "cilium_version": "1.19.2",
+  "checked_at": "2026-03-25",
+  "latest_stable": "1.19.2",
+  "latest_minor_branch": "1.19",
+  "upgrade_available": false,
+  "next_patch": null,
+  "next_minor": null
+}

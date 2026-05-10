@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: piraeus-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: piraeus-operator-tls
+      namespace: piraeus-datastore
+      jsonPointers:
+        - /data
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: piraeus-operator-validating-webhook-configuration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+  sources:
+    - repoURL: ghcr.io/piraeusdatastore/piraeus-operator
+      chart: piraeus
+      targetRevision: 2.10.4
+      helm:
+        valueFiles:
+          - $base/kubernetes/base/infrastructure/piraeus-operator/values.yaml
+    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+      targetRevision: main
+      path: kubernetes/overlays/homelab/infrastructure/piraeus-operator/resources
+      ref: cluster
+      helm:
+        valueFiles: []
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      helm:
+        valueFiles: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: piraeus-datastore
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

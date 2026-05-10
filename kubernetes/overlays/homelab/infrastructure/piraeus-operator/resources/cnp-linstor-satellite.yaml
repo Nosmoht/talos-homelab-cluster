@@ -1,0 +1,80 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: linstor-satellite
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/component: linstor-satellite
+  ingress:
+    # LINSTOR controller -> satellite communication
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/component: linstor-controller
+      toPorts:
+        - ports:
+            - port: "3367"
+              protocol: TCP
+    # DRBD replication from other satellites (port range 7000-7999)
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/component: linstor-satellite
+      toPorts:
+        - ports:
+            - port: "7000"
+              endPort: 7999
+              protocol: TCP
+    # Kubelet health probes (tcpSocket on linstor port 3367)
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "3367"
+              protocol: TCP
+    # Prometheus scraping drbd-reactor metrics
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "9942"
+              protocol: TCP
+  egress:
+    # LINSTOR controller API (registration, status updates)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/component: linstor-controller
+      toPorts:
+        - ports:
+            - port: "3371"
+              protocol: TCP
+            - port: "3370"
+              protocol: TCP
+    # DRBD replication to other satellites (port range 7000-7999)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/component: linstor-satellite
+      toPorts:
+        - ports:
+            - port: "7000"
+              endPort: 7999
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

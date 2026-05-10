@@ -1,0 +1,18 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: linstor-nvme-noreplica
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+provisioner: linstor.csi.linbit.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  placementCount: "1"
+  storagePool: lvm-thick
+  csi.storage.k8s.io/fstype: xfs

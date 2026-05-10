@@ -1,0 +1,31 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-node-exporter
+  ingress:
+    # Prometheus scrapes node-exporter metrics
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "9100"
+              protocol: TCP
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "9100"
+              protocol: TCP

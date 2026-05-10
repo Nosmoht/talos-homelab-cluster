@@ -1,0 +1,40 @@
+extraVolumes:
+  - name: tracefs
+    hostPath:
+      path: /sys/kernel/tracing
+      type: Directory
+
+tetragon:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  extraVolumeMounts:
+    - name: tracefs
+      mountPath: /sys/kernel/tracing
+  prometheus:
+    serviceMonitor:
+      enabled: true
+      scrapeInterval: 10s
+
+tetragonOperator:
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Equal
+      value: "present"
+      effect: NoSchedule
+
+export:
+  stdout:
+    enabledCommand: true
+    enabledArgs: true
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Equal
+    value: "present"
+    effect: NoSchedule

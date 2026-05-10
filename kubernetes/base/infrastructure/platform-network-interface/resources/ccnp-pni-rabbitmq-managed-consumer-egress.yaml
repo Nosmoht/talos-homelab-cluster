@@ -1,0 +1,43 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-rabbitmq-managed-consumer-egress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io.cilium.k8s.namespace.labels.platform.io/consume.rabbitmq-managed: "true"
+      k8s:io.cilium.k8s.namespace.labels.platform.io/network-interface-version: "v1"
+      platform.io/capability-consumer.rabbitmq-managed: "true"
+  egress:
+    # RabbitMQ broker pods (any namespace, identified by capability-provider label
+    # set on the RabbitmqCluster pod template via spec.override.statefulSet)
+    - toEndpoints:
+        - matchLabels:
+            platform.io/capability-provider.rabbitmq-managed: "true"
+      toPorts:
+        - ports:
+            - port: "5672"   # AMQP
+              protocol: TCP
+            - port: "5671"   # AMQPS
+              protocol: TCP
+            - port: "15672"  # Management HTTP
+              protocol: TCP
+            - port: "15671"  # Management HTTPS
+              protocol: TCP
+            - port: "15692"  # Prometheus exporter
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

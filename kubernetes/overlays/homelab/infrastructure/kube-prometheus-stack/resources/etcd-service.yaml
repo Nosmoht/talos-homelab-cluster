@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-kube-prometheus-kube-etcd
+  namespace: kube-system
+  labels:
+    app: kube-prometheus-stack-kube-etcd
+    release: monitoring
+    jobLabel: kube-etcd
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: etcd-monitoring
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  clusterIP: None
+  ports:
+    - name: http-metrics
+      port: 2381
+      protocol: TCP
+      targetPort: 2381
+  type: ClusterIP

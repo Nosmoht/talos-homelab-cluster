@@ -1,0 +1,13 @@
+watchNamespace: vault
+
+podLabels:
+  platform.io/capability-consumer.controlplane-egress: "true"
+  platform.io/capability-provider.monitoring-scrape: "true"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

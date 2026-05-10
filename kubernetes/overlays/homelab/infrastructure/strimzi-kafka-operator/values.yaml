@@ -1,0 +1,13 @@
+watchAnyNamespace: true
+
+labels:
+  platform.io/capability-consumer.monitoring-scrape: "true"
+  platform.io/capability-consumer.controlplane-egress: "true"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 384Mi
+  limits:
+    cpu: 1000m
+    memory: 384Mi

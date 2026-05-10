@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio-operator
+  labels:
+    app.kubernetes.io/name: minio-operator
+    app.kubernetes.io/managed-by: argocd
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: managed
+    platform.io/consume.controlplane-egress: "true"
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest

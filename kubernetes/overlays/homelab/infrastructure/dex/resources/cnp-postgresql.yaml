@@ -1,0 +1,35 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: dex-postgresql
+  namespace: dex
+  labels:
+    app.kubernetes.io/name: dex-postgresql
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      cnpg.io/cluster: dex-postgresql
+  ingress:
+    # Dex pods
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: dex
+            app.kubernetes.io/instance: dex
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    # CNPG operator management
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cnpg-system
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+            - port: "8000"
+              protocol: TCP

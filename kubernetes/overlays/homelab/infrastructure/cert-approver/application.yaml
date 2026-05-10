@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubelet-serving-cert-approver
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/name: kubelet-serving-cert-approver
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  source:
+    repoURL: https://github.com/alex1989hu/kubelet-serving-cert-approver.git
+    targetRevision: v0.10.3
+    path: deploy/standalone
+    kustomize:
+      patches:
+        - target:
+            kind: Namespace
+            name: kubelet-serving-cert-approver
+          patch: |
+            - op: add
+              path: /metadata/labels/app.kubernetes.io~1instance
+              value: homelab
+            - op: add
+              path: /metadata/labels/app.kubernetes.io~1part-of
+              value: homelab
+            - op: replace
+              path: /metadata/labels/app.kubernetes.io~1name
+              value: kubelet-serving-cert-approver
+            - op: add
+              path: /metadata/labels/app.kubernetes.io~1managed-by
+              value: argocd
+            - op: add
+              path: /metadata/labels/platform.io~1network-interface-version
+              value: v1
+            - op: add
+              path: /metadata/labels/platform.io~1network-profile
+              value: managed
+            - op: add
+              path: /metadata/labels/pod-security.kubernetes.io~1enforce-version
+              value: latest
+            - op: add
+              path: /metadata/labels/pod-security.kubernetes.io~1audit-version
+              value: latest
+            - op: add
+              path: /metadata/labels/pod-security.kubernetes.io~1warn-version
+              value: latest
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubelet-serving-cert-approver
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true

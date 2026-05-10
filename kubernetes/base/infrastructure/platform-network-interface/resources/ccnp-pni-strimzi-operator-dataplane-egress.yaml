@@ -1,0 +1,29 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-strimzi-operator-dataplane-egress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io.kubernetes.pod.namespace: kafka
+      name: strimzi-cluster-operator
+      strimzi.io/kind: cluster-operator
+  egress:
+    # Managed Kafka broker pods
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/managed-by: strimzi-cluster-operator
+            app.kubernetes.io/name: kafka
+            strimzi.io/component-type: kafka
+      toPorts:
+        - ports:
+            - port: "9090"
+              protocol: TCP
+            - port: "9091"
+              protocol: TCP
+            - port: "9092"
+              protocol: TCP

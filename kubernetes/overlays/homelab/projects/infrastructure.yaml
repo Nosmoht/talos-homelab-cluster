@@ -1,0 +1,138 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infrastructure
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  description: Cluster infrastructure components
+  sourceRepos:
+    - https://github.com/Nosmoht/Talos-Homelab.git
+    - https://github.com/rancher/local-path-provisioner.git
+    - https://argoproj.github.io/argo-helm
+    - https://charts.jetstack.io
+    - https://github.com/alex1989hu/kubelet-serving-cert-approver.git
+    - https://charts.dexidp.io
+    - https://kubernetes-sigs.github.io/metrics-server
+    - https://kubernetes-sigs.github.io/node-feature-discovery/charts
+    - https://nvidia.github.io/k8s-device-plugin
+    - https://nvidia.github.io/dcgm-exporter/helm-charts
+    - ghcr.io/piraeusdatastore/piraeus-operator*
+    - https://cloudnative-pg.github.io/charts
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+    - https://kyverno.github.io/kyverno
+    - https://ot-container-kit.github.io/helm-charts
+    - https://strimzi.io/charts/
+    - ghcr.io/bank-vaults/helm-charts*
+    - https://redhat-cop.github.io/vault-config-operator
+    - https://charts.external-secrets.io
+    - https://operator.min.io/
+    - https://helm.cilium.io/
+    - https://github.com/mbentley/docker-omada-controller.git
+    - https://github.com/Nosmoht/talos-platform-base.git
+    - https://github.com/Nosmoht/talos-homelab-cluster.git
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
+      server: https://kubernetes.default.svc
+    - namespace: default
+      server: https://kubernetes.default.svc
+    - namespace: dex
+      server: https://kubernetes.default.svc
+    - namespace: kubelet-serving-cert-approver
+      server: https://kubernetes.default.svc
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+    - namespace: node-feature-discovery
+      server: https://kubernetes.default.svc
+    - namespace: nvidia-dcgm-exporter
+      server: https://kubernetes.default.svc
+    - namespace: cnpg-system
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: piraeus-datastore
+      server: https://kubernetes.default.svc
+    - namespace: kyverno
+      server: https://kubernetes.default.svc
+    - namespace: redis-system
+      server: https://kubernetes.default.svc
+    - namespace: kafka
+      server: https://kubernetes.default.svc
+    - namespace: vault
+      server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
+    - namespace: minio-operator
+      server: https://kubernetes.default.svc
+    - namespace: minio
+      server: https://kubernetes.default.svc
+    - namespace: kubevirt
+      server: https://kubernetes.default.svc
+    - namespace: cdi
+      server: https://kubernetes.default.svc
+    - namespace: tetragon
+      server: https://kubernetes.default.svc
+    - namespace: rabbitmq-system
+      server: https://kubernetes.default.svc
+    - namespace: omada-controller
+      server: https://kubernetes.default.svc
+    - namespace: public-ingress
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: apiregistration.k8s.io
+      kind: APIService
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
+    - group: cilium.io
+      kind: CiliumClusterwideNetworkPolicy
+    - group: cilium.io
+      kind: CiliumLoadBalancerIPPool
+    - group: cilium.io
+      kind: CiliumL2AnnouncementPolicy
+    - group: cilium.io
+      kind: TracingPolicy
+    - group: kyverno.io
+      kind: ClusterPolicy
+    - group: nfd.k8s-sigs.io
+      kind: NodeFeatureRule
+    - group: piraeus.io
+      kind: LinstorCluster
+    - group: piraeus.io
+      kind: LinstorNodeConnection
+    - group: piraeus.io
+      kind: LinstorSatelliteConfiguration
+    - group: minio.min.io
+      kind: Tenant
+    - group: cdi.kubevirt.io
+      kind: CDI
+    - group: rabbitmq.com
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

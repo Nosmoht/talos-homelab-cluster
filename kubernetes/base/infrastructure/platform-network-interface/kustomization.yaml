@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - resources/capability-registry-configmap.yaml
+  - resources/kyverno-clusterpolicy-pni-contract-enforce.yaml
+  - resources/kyverno-clusterpolicy-pni-reserved-labels-enforce.yaml
+  - resources/kyverno-clusterpolicy-pni-capability-validation-enforce.yaml
+  - resources/kyverno-clusterpolicy-external-httproute-hostnames-enforce.yaml
+  - resources/kyverno-clusterpolicy-vault-ca-distribution.yaml
+  - resources/ccnp-pni-monitoring-dns-visibility.yaml
+  - resources/ccnp-pni-admission-webhook-provider-ingress.yaml
+  - resources/ccnp-pni-monitoring-scrape-provider-ingress.yaml
+  - resources/ccnp-pni-controlplane-egress-consumer-egress.yaml
+  - resources/ccnp-pni-cnpg-operator-dataplane-egress.yaml
+  - resources/ccnp-pni-redis-operator-dataplane-egress.yaml
+  - resources/ccnp-pni-strimzi-operator-dataplane-egress.yaml
+  - resources/ccnp-pni-rabbitmq-operator-dataplane-egress.yaml
+  - resources/ccnp-pni-s3-object-consumer-egress.yaml
+  - resources/ccnp-pni-cnpg-postgres-consumer-egress.yaml
+  - resources/ccnp-pni-vault-secrets-consumer-egress.yaml
+  - resources/ccnp-pni-redis-managed-consumer-egress.yaml
+  - resources/ccnp-pni-kafka-managed-consumer-egress.yaml
+  - resources/ccnp-pni-rabbitmq-managed-consumer-egress.yaml
+  - resources/ccnp-pni-gateway-backend-consumer-ingress.yaml
+  - resources/ccnp-pni-monitoring-scrape-consumer-egress.yaml
+  - resources/ccnp-pni-internet-egress-consumer-egress.yaml

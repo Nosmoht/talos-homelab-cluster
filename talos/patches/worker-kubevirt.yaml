@@ -1,0 +1,24 @@
+# KubeVirt VM networking: VLAN 100 sub-interface + Linux bridge.
+# Creates a bridge (br-vm) on VLAN 100 for KubeVirt VMs via Multus bridge CNI.
+# Only works on standard workers (enp0s31f6). GPU node has different NIC.
+#
+# Prerequisites:
+#   - Upstream switch ports must be 802.1Q trunks (native untagged + VLAN 100 tagged)
+#   - Cilium bpf.vlanBypass must include VLAN 100
+---
+apiVersion: v1alpha1
+kind: VLANConfig
+name: enp0s31f6.100
+vlanID: 100
+vlanMode: 802.1q
+parent: enp0s31f6
+up: true
+---
+apiVersion: v1alpha1
+kind: BridgeConfig
+name: br-vm
+links:
+  - enp0s31f6.100
+stp:
+  enabled: false
+up: true

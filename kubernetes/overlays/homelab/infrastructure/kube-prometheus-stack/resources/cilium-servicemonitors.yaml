@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cilium-agent-metrics
+  namespace: kube-system
+  labels:
+    app: cilium-agent-metrics
+    app.kubernetes.io/name: cilium
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: agent-metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  selector:
+    k8s-app: cilium
+  ports:
+    - name: metrics
+      port: 9962
+      targetPort: 9962
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cilium-operator-metrics
+  namespace: kube-system
+  labels:
+    app: cilium-operator-metrics
+    app.kubernetes.io/name: cilium
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: operator-metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  selector:
+    io.cilium/app: operator
+  ports:
+    - name: metrics
+      port: 9963
+      targetPort: 9963
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-agent
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cilium
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: agent-metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app: cilium-agent-metrics
+  endpoints:
+    - port: metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-operator
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cilium
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: operator-metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app: cilium-operator-metrics
+  endpoints:
+    - port: metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-hubble
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cilium
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: hubble-metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app: cilium-hubble-metrics
+  endpoints:
+    - targetPort: 9965
+      interval: 30s

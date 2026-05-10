@@ -1,0 +1,45 @@
+repos:
+  # Local hooks — wrap existing repo scripts so CI and pre-commit run identical code.
+  - repo: local
+    hooks:
+      - id: verify-sops-files
+        name: Verify SOPS encryption (wraps scripts/verify_sops_files.sh)
+        entry: bash scripts/verify_sops_files.sh
+        language: system
+        # Runs on the whole repo (pass_filenames: false) to match CI behavior.
+        # The script discovers all *.sops.yaml files via its own find logic.
+        pass_filenames: false
+        always_run: false
+        files: '\.sops\.(yaml|yml)$'
+
+      - id: codex-config-placeholder-only
+        name: Ensure .codex/config.toml uses only ${VAR} placeholders in env blocks
+        entry: bash scripts/check-codex-config-placeholders.sh
+        language: system
+        files: '^\.codex/config\.toml$'
+        pass_filenames: false
+
+      - id: check-mcp-config-portable
+        name: MCP configs must use bare PATH commands (no absolute paths or variables)
+        entry: sh scripts/check-mcp-config-portable.sh
+        language: system
+        files: '^(\.mcp\.json|\.codex/config\.toml)$'
+        pass_filenames: false
+
+      - id: trivy-config
+        name: Trivy config scan (HIGH/CRITICAL) — wraps scripts/run_trivy.sh
+        entry: sh scripts/run_trivy.sh
+        language: system
+        # Scans the whole repo (pass_filenames: false); triggered only when
+        # kubernetes manifests change so doc/talos-config-only commits stay fast.
+        pass_filenames: false
+        files: '^kubernetes/.*\.(yaml|yml)$'
+
+  # gitleaks — secret scanner. Pin to a commit SHA for reproducible builds.
+  # To update: look up the desired release tag on github.com/gitleaks/gitleaks/releases,
+  # find its merge commit SHA, and replace the rev value below.
+  # Current pin: v8.24.3 (2025-09-01). Update quarterly or when a CVE is published.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks

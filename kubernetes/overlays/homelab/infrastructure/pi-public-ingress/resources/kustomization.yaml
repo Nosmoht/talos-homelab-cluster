@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+
+# Content-hash configMapGenerator: any nginx.conf edit produces a new
+# ConfigMap name and triggers a Deployment rollout automatically.
+configMapGenerator:
+  - name: pi-public-ingress-config
+    namespace: public-ingress
+    files:
+      - nginx.conf
+    options:
+      labels:
+        app.kubernetes.io/name: pi-public-ingress
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/component: l4-proxy
+        app.kubernetes.io/part-of: homelab
+        app.kubernetes.io/managed-by: argocd

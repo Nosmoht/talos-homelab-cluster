@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pni-capability-registry
+  namespace: kyverno
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: capability-registry
+    app.kubernetes.io/managed-by: argocd
+data:
+  interfaceVersion: "v1"
+  capabilities.yaml: |
+    capabilities:
+      - id: monitoring-scrape
+        providers:
+          - kube-prometheus-stack
+          - vault-config-operator
+      - id: logging-ship
+        providers:
+          - alloy
+          - loki
+      - id: vault-secrets
+        providers:
+          - vault-operator
+          - vault-config-operator
+          - external-secrets
+      - id: cnpg-postgres
+        providers:
+          - cloudnative-pg
+      - id: redis-managed
+        selector: pod-label capability-provider.redis-managed
+        # Operator that labels broker pods with capability-provider.redis-managed.
+        providers:
+          - redis-operator
+      - id: kafka-managed
+        providers:
+          - strimzi-kafka-operator
+      - id: rabbitmq-managed
+        selector: pod-label capability-provider.rabbitmq-managed
+        # Operator that labels broker pods with capability-provider.rabbitmq-managed.
+        # Note: rabbitmq-cluster-operator (control-plane) creates the broker pods
+        # but is itself a control-plane component, not a data-path provider.
+        # messaging-topology-operator reconciles via management API
+        # (operator-dataplane CCNP).
+        providers:
+          - rabbitmq-messaging-topology-operator
+      - id: s3-object
+        providers:
+          - minio-operator
+          - minio
+      - id: storage-csi
+        providers:
+          - piraeus-operator
+      - id: tls-issuance
+        providers:
+          - cert-manager
+          - cert-approver
+      - id: gateway-backend
+        providers:
+          - gateway-api
+      - id: external-gateway-routes
+        providers:
+          - gateway-api
+        # Opt-in to attach HTTPRoutes to the *.<your-cluster-fqdn> listener on
+        # the cluster gateway. Network policy is unchanged — uses existing
+        # gateway-backend capability for Envoy->consumer traffic; this label only
+        # controls Gateway-API allowedRoutes selection on the external-https
+        # listener.
+      - id: gpu-runtime
+        providers:
+          - nvidia-device-plugin
+          - nvidia-dcgm-exporter
+          - node-feature-discovery
+      - id: hpa-metrics
+        providers:
+          - metrics-server
+      - id: internet-egress
+        providers:
+          - cilium
+      - id: controlplane-egress
+        providers:
+          - kube-apiserver
+      - id: admission-webhook-provider
+        direction: provider-ingress
+        selector: pod-label capability-provider.admission-webhook
+        providers:
+          - kyverno
+          - cloudnative-pg
+          - redis-operator
+          - piraeus-operator
+          - minio-operator
+          - vault-config-operator
+          - rabbitmq-messaging-topology-operator
+      - id: monitoring-scrape-provider
+        direction: provider-ingress
+        selector: pod-label capability-provider.monitoring-scrape
+        providers:
+          - vault-operator
+          - cloudnative-pg
+          - redis-operator
+          - strimzi-kafka-operator
+          - vault

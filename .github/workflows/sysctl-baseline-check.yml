@@ -1,0 +1,53 @@
+# Mechanically enforce parity between the kernel-param-auditor 3-layer baseline and
+# talos/patches/common.yaml. Fires only when one of the two source files changes (or
+# the workflow itself).
+#
+# Bypass for emergency hotfixes: add the literal token `[skip-baseline-check]` to the
+# PR title. The job is skipped, not failed. Document the bypass in the PR body so
+# follow-up reconciliation has an audit trail.
+name: sysctl-baseline-check
+
+on:
+  pull_request:
+    paths:
+      - 'talos/patches/common.yaml'
+      - '.claude/skills/kernel-param-auditor/references/role-baselines.md'
+      - '.github/workflows/sysctl-baseline-check.yml'
+      - '.github/workflows/scripts/sysctl-parity.sh'
+
+jobs:
+  parity:
+    if: ${{ !contains(github.event.pull_request.title, '[skip-baseline-check]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.45.1
+
+      - name: Extract layer baselines from role-baselines.md
+        run: |
+          set -euo pipefail
+          BL=.claude/skills/kernel-param-auditor/references/role-baselines.md
+          for layer in 1 2 3; do
+            awk "/^# layer${layer}-baseline-yaml-start$/,/^# layer${layer}-baseline-yaml-end$/" "$BL" \
+              | sed '1d;$d' | yq e '.sysctls' - > "/tmp/layer${layer}.yaml"
+            count=$(yq e 'keys | length' "/tmp/layer${layer}.yaml")
+            echo "layer ${layer}: ${count} sysctls"
+            [ "$count" -gt 0 ] || { echo "::error::layer-${layer} block missing or empty"; exit 1; }
+          done
+
+      - name: Normalize common.yaml sysctls (whitespace-collapsed tuples)
+        run: |
+          set -euo pipefail
+          # Map each sysctl to { expected: "<whitespace-collapsed-value>" } so the
+          # parity script can compare values uniformly. Talos /proc/sys/ may emit
+          # tabs in tuples; common.yaml uses single spaces.
+          yq e '.machine.sysctls | with_entries(.value = {"expected": (.value | sub("[\t ]+"; " "))})' \
+            talos/patches/common.yaml > /tmp/common.yaml
+          count=$(yq e 'keys | length' /tmp/common.yaml)
+          echo "common.yaml: ${count} sysctls"
+          [ "$count" -gt 0 ] || { echo "::error::common.yaml has no sysctls"; exit 1; }
+
+      - name: Parity check (4 fail conditions)
+        run: bash .github/workflows/scripts/sysctl-parity.sh

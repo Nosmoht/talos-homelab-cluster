@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-oauth2-proxy
+  namespace: monitoring
+  labels:
+    app: alertmanager-oauth2-proxy
+    app.kubernetes.io/name: alertmanager-oauth2-proxy
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: oauth2-proxy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 4180
+      targetPort: http
+  selector:
+    app: alertmanager-oauth2-proxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager-oauth2-proxy
+  namespace: monitoring
+  labels:
+    app: alertmanager-oauth2-proxy
+    app.kubernetes.io/name: alertmanager-oauth2-proxy
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: oauth2-proxy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: alertmanager-oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: alertmanager-oauth2-proxy
+        app.kubernetes.io/name: alertmanager-oauth2-proxy
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/component: oauth2-proxy
+        app.kubernetes.io/part-of: homelab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: alertmanager-oauth2-proxy
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.14.2
+          args:
+            - --http-address=0.0.0.0:4180
+            - --provider=oidc
+            - --oidc-issuer-url=https://dex.homelab.local
+            - --skip-oidc-discovery=true
+            - --login-url=https://dex.homelab.local/auth
+            - --redeem-url=http://dex.dex.svc.cluster.local:5556/token
+            - --oidc-jwks-url=http://dex.dex.svc.cluster.local:5556/keys
+            - --redirect-url=https://alertmanager.lan.homelab.ntbc.io/oauth2/callback
+            - --upstream=http://monitoring-kube-prometheus-alertmanager.monitoring.svc:9093
+            - --email-domain=*
+            - --oidc-email-claim=preferred_username
+            - --authenticated-emails-file=/etc/oauth2-proxy/allowed-emails
+            - --scope=openid email profile groups
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --cookie-refresh=1h
+            - --cookie-expire=12h
+            - --skip-provider-button=true
+            - --set-xauthrequest=true
+            - --pass-access-token=true
+            - --pass-authorization-header=true
+            - --reverse-proxy=true
+          ports:
+            - name: http
+              containerPort: 4180
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              value: alertmanager
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: alertmanager-client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: alertmanager-cookie-secret
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: allowed-emails
+              mountPath: /etc/oauth2-proxy/allowed-emails
+              subPath: allowed-emails
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: allowed-emails
+          configMap:
+            name: oauth2-proxy-allowed-emails

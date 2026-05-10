@@ -1,0 +1,28 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-admission-webhook-provider-ingress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      platform.io/capability-provider.admission-webhook: "true"
+  ingress:
+    # kube-apiserver admission webhook calls (validating + mutating).
+    # host + remote-node are included because apiserver traffic can SNAT via
+    # cilium_host across nodes in Cilium WireGuard strict mode.
+    - fromEntities:
+        - kube-apiserver
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            # vault-config-operator, kyverno, cnpg, redis-op, piraeus-op (container port)
+            - port: "9443"
+              protocol: TCP
+            # minio-operator webhook (container port)
+            - port: "4221"
+              protocol: TCP

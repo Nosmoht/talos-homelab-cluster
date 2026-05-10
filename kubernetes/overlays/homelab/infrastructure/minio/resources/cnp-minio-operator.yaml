@@ -1,0 +1,50 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: minio-operator
+  namespace: minio-operator
+  labels:
+    app.kubernetes.io/name: minio-operator
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: operator
+  ingress:
+    # Health probes from kubelet
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "4221"
+              protocol: TCP
+    # Webhook calls from kube-apiserver
+    - fromEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "4221"
+              protocol: TCP
+    # STS endpoint (AssumeRoleWithWebIdentity) from s3-object consumers
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.cilium.k8s.namespace.labels.platform.io/consume.s3-object: "true"
+      toPorts:
+        - ports:
+            - port: "4223"
+              protocol: TCP
+  egress:
+    # Tenant pods for lifecycle management
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: minio
+      toPorts:
+        - ports:
+            - port: "9000"
+              protocol: TCP
+            - port: "9443"
+              protocol: TCP

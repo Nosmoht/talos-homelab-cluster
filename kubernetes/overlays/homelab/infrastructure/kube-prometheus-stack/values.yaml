@@ -1,0 +1,186 @@
+prometheus:
+  thanosService:
+    enabled: true
+  thanosServiceMonitor:
+    enabled: true
+  prometheusSpec:
+    podMetadata:
+      labels:
+        platform.io/capability-consumer.storage-csi: "true"
+        platform.io/capability-consumer.s3-object: "true"
+        platform.io/capability-consumer.gateway-backend: "true"
+    replicas: 2
+    retention: 15d
+    externalLabels:
+      cluster: homelab
+    podAntiAffinity: hard
+    podAntiAffinityTopologyKey: kubernetes.io/hostname
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: prometheus
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: linstor-csi
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+    thanos:
+      image: quay.io/thanos/thanos:v0.40.1
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 3
+    podAntiAffinity: hard
+    podAntiAffinityTopologyKey: kubernetes.io/hostname
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: alertmanager
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: linstor-csi
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+kube-state-metrics:
+  replicas: 2
+  podDisruptionBudget:
+    minAvailable: 1
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+  readinessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kube-state-metrics
+          topologyKey: kubernetes.io/hostname
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: kube-state-metrics
+
+grafana:
+  replicas: 1
+  podLabels:
+    platform.io/capability-consumer.gateway-backend: "true"
+  service:
+    type: ClusterIP
+    sessionAffinity: None
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: grafana
+          topologyKey: kubernetes.io/hostname
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: grafana
+  podDisruptionBudget:
+    minAvailable: 1
+  envValueFrom:
+    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+      secretKeyRef:
+        name: grafana-oidc
+        key: client-secret
+  env:
+    GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: "true"
+  grafana.ini:
+    server:
+      domain: grafana.lan.homelab.ntbc.io
+      root_url: https://grafana.lan.homelab.ntbc.io
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+      check_for_plugin_updates: false
+      feedback_links_enabled: false
+    security:
+      disable_initial_admin_creation: true
+      cookie_secure: true
+      cookie_samesite: lax
+    auth:
+      disable_login_form: false
+    auth.anonymous:
+      enabled: true
+      org_role: Admin
+    auth.generic_oauth:
+      enabled: false
+      name: Dex
+      client_id: grafana
+      client_secret: ${GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+      scopes: openid email profile groups
+      auth_url: https://dex.homelab.local/auth
+      token_url: http://dex.dex.svc.cluster.local:5556/token
+      api_url: http://dex.dex.svc.cluster.local:5556/userinfo
+      allow_sign_up: true
+      role_attribute_path: preferred_username=='nosmoht' && 'Admin' || ''
+      role_attribute_strict: true
+      skip_org_role_sync: false
+  datasources:
+    datasource.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          uid: prometheus
+          type: prometheus
+          access: proxy
+          url: http://thanos-query.monitoring.svc:9090/
+          isDefault: true
+          jsonData:
+            httpMethod: POST
+            timeInterval: 30s
+        - name: Alertmanager
+          uid: alertmanager
+          type: alertmanager
+          access: proxy
+          url: http://monitoring-kube-prometheus-alertmanager.monitoring:9093/
+          jsonData:
+            handleGrafanaManagedAlerts: false
+            implementation: prometheus
+        - name: prometheus
+          uid: prometheus-legacy
+          type: prometheus
+          access: proxy
+          url: http://thanos-query.monitoring.svc:9090
+        - name: default
+          uid: default
+          type: prometheus
+          access: proxy
+          url: http://thanos-query.monitoring.svc:9090
+        - name: Loki
+          uid: loki
+          type: loki
+          access: proxy
+          url: http://loki-gateway.monitoring.svc

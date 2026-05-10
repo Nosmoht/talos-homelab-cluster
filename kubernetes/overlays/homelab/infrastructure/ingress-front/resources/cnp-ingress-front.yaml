@@ -1,0 +1,29 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cnp-ingress-front
+  namespace: default
+  labels:
+    app.kubernetes.io/name: ingress-front
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-front
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    # Proxy traffic to Gateway Envoy goes via net1 (macvlan) to remote worker
+    # nodes' LAN IPs. Macvlan traffic bypasses Cilium eBPF entirely, so no
+    # egress rule is needed for the proxy path. Only DNS (above) needs eth0.

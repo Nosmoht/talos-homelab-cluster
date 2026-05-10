@@ -1,0 +1,24 @@
+runtimeClassName: nvidia
+
+arguments:
+  - -f
+  - /etc/dcgm-exporter/dcp-metrics-included.csv
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Equal
+    value: "present"
+    effect: NoSchedule
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-lts
+              operator: Exists
+
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: monitoring

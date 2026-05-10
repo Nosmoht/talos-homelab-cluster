@@ -1,0 +1,20 @@
+apiVersion: piraeus.io/v1
+kind: LinstorNodeConnection
+metadata:
+  name: storage-vlan110
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: linstor-node-connection
+    app.kubernetes.io/instance: storage-vlan110
+    app.kubernetes.io/component: drbd-paths
+    app.kubernetes.io/part-of: piraeus-operator
+    app.kubernetes.io/version: "2.10.4"
+    app.kubernetes.io/managed-by: argocd
+spec:
+  selector:
+    - matchLabels:
+        - key: feature.node.kubernetes.io/storage-nvme.present
+          op: Exists
+  paths:
+    - name: storage-vlan110
+      interface: storage-vlan110

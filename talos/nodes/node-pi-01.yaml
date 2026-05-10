@@ -1,0 +1,19 @@
+machine:
+  install:
+    disk: /dev/disk/by-id/usb-EDILOCA_EN605_256GB_012938000C52-0:0
+  network:
+    interfaces:
+      - deviceSelector:
+          hardwareAddr: dc:a6:32:c4:57:e8
+        addresses:
+          - 192.168.2.68/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.2.1
+    nameservers:
+      - 192.168.2.1
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: null
+hostname: node-pi-01

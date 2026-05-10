@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - cnp-kyverno-admission-controller.yaml
+  - cnp-kyverno-background-controller.yaml
+  - cnp-kyverno-cleanup-controller.yaml
+  - cnp-kyverno-reports-controller.yaml
+  - clusterpolicy-pi-reserved-daemonset-toleration.yaml

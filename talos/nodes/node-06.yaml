@@ -1,0 +1,31 @@
+machine:
+  install:
+    disk: /dev/disk/by-path/pci-0000:00:17.0-ata-1
+  network:
+    interfaces:
+      - deviceSelector:
+          hardwareAddr: 00:23:24:ea:af:90
+          driver: e1000e
+        addresses:
+          - 192.168.2.66/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.2.1
+      - interface: enp0s31f6.110
+        addresses:
+          - 192.168.110.6/24
+    nameservers:
+      - 192.168.2.1
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: null
+hostname: node-06
+---
+apiVersion: v1alpha1
+kind: VLANConfig
+name: enp0s31f6.110
+vlanID: 110
+vlanMode: 802.1q
+parent: enp0s31f6
+up: true

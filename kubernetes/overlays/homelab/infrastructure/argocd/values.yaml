@@ -1,0 +1,6 @@
+global:
+  domain: argocd.lan.homelab.ntbc.io
+
+configs:
+  cm:
+    url: https://argocd.lan.homelab.ntbc.io

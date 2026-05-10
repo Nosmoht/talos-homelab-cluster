@@ -1,0 +1,59 @@
+# Omada SDN Controller — base Helm values.
+# Upstream chart: github.com/mbentley/docker-omada-controller, helm/omada-controller-helm
+# appVersion tracked via the Application's targetRevision (git tag).
+# Manages the TP-Link SG3428 switch from inside the cluster.
+
+image:
+  # Chart appVersion controls the image tag; leave tag empty to use it.
+  pullPolicy: IfNotPresent
+
+config:
+  # Runs the container as non-root. Required for PSA baseline enforcement on
+  # the omada-controller namespace (see overlays/<cluster>/infrastructure/namespaces-psa.yaml).
+  rootless: true
+  timezone: Europe/Berlin
+
+# --- Persistence (DRBD-replicated) ---
+# DRBD RWO is active-passive; pod is pinned via nodeSelector below so the
+# scheduled node always holds the replica primary.
+persistence:
+  data:
+    enabled: true
+    size: 5Gi
+    storageClassName: linstor-csi
+    accessModes:
+      - ReadWriteOnce
+  logs:
+    enabled: true
+    size: 2Gi
+    storageClassName: linstor-csi
+    accessModes:
+      - ReadWriteOnce
+
+# --- Service exposure ---
+# The VIP is assigned from the CiliumLoadBalancerIPPool in ./resources/.
+# L2 announcement is handled by the matching CiliumL2AnnouncementPolicy.
+service:
+  type: LoadBalancer
+
+# --- Placement: pin to a storage-capable worker (NVMe + LINSTOR primary) ---
+nodeSelector:
+  feature.node.kubernetes.io/storage-nvme.present: "true"
+
+# --- Resources ---
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+# --- Ingress disabled — external access via LoadBalancer VIP (or future HTTPRoute) ---
+ingress:
+  enabled: false
+
+# --- TP-Link Cloud access ---
+# The chart has no toggle for this; disable via the controller UI after first
+# launch (Settings -> Controller -> Cloud Access). Documented as a post-install
+# manual step in the cutover ADR.

@@ -1,0 +1,20 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-monitoring-scrape-provider-ingress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      platform.io/capability-provider.monitoring-scrape: "true"
+  ingress:
+    # Prometheus scrape ingress — port-agnostic: each provider owns its own
+    # metrics port (e.g. 8443 kube-rbac-proxy, 8080 direct, 9090 custom).
+    # The pod-label gate is the security boundary; no toPorts restriction needed.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: prometheus

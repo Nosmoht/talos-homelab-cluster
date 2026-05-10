@@ -1,0 +1,71 @@
+apiVersion: piraeus.io/v1
+kind: LinstorSatelliteConfiguration
+metadata:
+  name: homelab
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-satellite-configuration
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  nodeSelector:
+    feature.node.kubernetes.io/storage-nvme.present: "true"
+  properties:
+    - name: PrefNic
+      value: storage-vlan110
+  internalTLS:
+    certManager:
+      name: linstor-internal-ca
+      kind: Issuer
+  patches:
+    - patch: |
+        apiVersion: apps/v1
+        kind: DaemonSet
+        metadata:
+          name: linstor-satellite
+        spec:
+          template:
+            spec:
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              initContainers:
+                - name: drbd-shutdown-guard
+                  $patch: delete
+                - name: drbd-module-loader
+                  $patch: delete
+              volumes:
+                - name: run-systemd-system
+                  $patch: delete
+                - name: run-drbd-shutdown-guard
+                  $patch: delete
+                - name: systemd-bus-socket
+                  $patch: delete
+                - name: lib-modules
+                  $patch: delete
+                - name: usr-src
+                  $patch: delete
+                - name: etc-lvm-backup
+                  # Talos keeps mutable /etc state under /var/etc on the host.
+                  # Mount the real host path so LVM backup files persist correctly.
+                  hostPath:
+                    path: /var/etc/lvm/backup
+                    type: DirectoryOrCreate
+                - name: etc-lvm-archive
+                  # Same Talos path redirection as above for LVM metadata archives.
+                  hostPath:
+                    path: /var/etc/lvm/archive
+                    type: DirectoryOrCreate
+      target:
+        kind: DaemonSet
+        labelSelector: app.kubernetes.io/component=linstor-satellite
+  storagePools:
+    - lvmPool:
+        volumeGroup: linstor
+      name: lvm-thick
+      source:
+        hostDevices:
+          - /dev/nvme0n1

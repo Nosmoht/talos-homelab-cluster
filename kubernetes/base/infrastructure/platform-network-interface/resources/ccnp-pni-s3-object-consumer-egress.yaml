@@ -1,0 +1,43 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-s3-object-consumer-egress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io.cilium.k8s.namespace.labels.platform.io/consume.s3-object: "true"
+      k8s:io.cilium.k8s.namespace.labels.platform.io/network-interface-version: "v1"
+      platform.io/capability-consumer.s3-object: "true"
+  egress:
+    # MinIO S3 API (pod port 9000/TCP, TLS)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: minio
+            v1.min.io/tenant: minio
+      toPorts:
+        - ports:
+            - port: "9000"
+              protocol: TCP
+    # MinIO Operator STS endpoint (AssumeRoleWithWebIdentity, 4223/TCP)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: minio-operator
+            app.kubernetes.io/name: operator
+      toPorts:
+        - ports:
+            - port: "4223"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

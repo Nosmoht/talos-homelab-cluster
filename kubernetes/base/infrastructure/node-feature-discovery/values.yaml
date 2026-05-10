@@ -1,0 +1,9 @@
+master:
+  replicaCount: 1
+
+worker:
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Equal
+      value: "present"
+      effect: NoSchedule

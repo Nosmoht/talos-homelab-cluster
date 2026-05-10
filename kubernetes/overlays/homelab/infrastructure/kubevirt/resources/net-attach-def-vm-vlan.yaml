@@ -1,0 +1,24 @@
+# NetworkAttachmentDefinition for KubeVirt VMs on VLAN 100.
+# Uses the bridge CNI plugin to attach VM secondary interfaces to br-vm
+# (Linux bridge created by Talos BridgeConfig on worker nodes).
+# VLAN traffic bypasses Cilium eBPF entirely — only router ACLs apply.
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: vm-vlan100
+  namespace: kubevirt
+  labels:
+    app.kubernetes.io/name: kubevirt
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "vm-vlan100",
+      "type": "bridge",
+      "bridge": "br-vm",
+      "ipam": {}
+    }

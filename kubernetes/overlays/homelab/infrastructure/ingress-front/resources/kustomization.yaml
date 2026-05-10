@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - net-attach-def.yaml
+  - net-attach-def-public.yaml
+  - deployment.yaml
+  - cnp-ingress-front.yaml
+
+# Generate the nginx ConfigMap from nginx.conf with a content-hash suffix so
+# any edit to nginx.conf produces a new ConfigMap name and triggers a Deployment
+# rollout automatically. Without the hash suffix, ConfigMap edits leave the
+# running pod with the old config until a manual rollout-restart.
+configMapGenerator:
+  - name: ingress-front-config
+    namespace: default
+    files:
+      - nginx.conf
+    options:
+      labels:
+        app.kubernetes.io/name: ingress-front
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/component: l4-proxy
+        app.kubernetes.io/part-of: homelab
+        app.kubernetes.io/managed-by: argocd

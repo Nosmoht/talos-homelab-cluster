@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+generators:
+  - ksops-generator.yaml
+
+resources:
+  - cnp-minio-operator.yaml
+  - cnp-minio.yaml
+  - servicemonitor-minio.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: dashboard-minio
+    namespace: monitoring
+    files:
+      - dashboards/minio.json
+    options:
+      labels:
+        grafana_dashboard: "1"

@@ -1,0 +1,38 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-gateway-backend-consumer-ingress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io.cilium.k8s.namespace.labels.platform.io/consume.gateway-backend: "true"
+      k8s:io.cilium.k8s.namespace.labels.platform.io/network-interface-version: "v1"
+      platform.io/capability-consumer.gateway-backend: "true"
+  ingress:
+    # Cilium Gateway API proxy (reserved:ingress identity)
+    - fromEntities:
+        - ingress
+      toPorts:
+        - ports:
+            # Grafana (container port)
+            - port: "3000"
+              protocol: TCP
+            # OAuth2-Proxy — Prometheus + Alertmanager (container port)
+            - port: "4180"
+              protocol: TCP
+            # Dex OIDC (container port)
+            - port: "5556"
+              protocol: TCP
+            # plane.so api/web (Django/Uvicorn default container port)
+            - port: "8000"
+              protocol: TCP
+            # kb-mcp MCP server (container port)
+            - port: "8001"
+              protocol: TCP
+            # Vault UI (container port)
+            - port: "8200"
+              protocol: TCP

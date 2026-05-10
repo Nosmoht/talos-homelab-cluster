@@ -1,0 +1,35 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: homelab-staging
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: cluster-issuer
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  acme:
+    email: thomas.krahn.tk@gmail.com
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: homelab-staging-account-key
+    solvers:
+      - dns01:
+          cloudDNS:
+            project: io-ntbc-domain-control-1900413
+            serviceAccountSecretRef:
+              key: service-account-key.json
+              name: google-cloud-dns
+        selector:
+          dnsZones:
+            - homelab.local
+      - dns01:
+          cloudDNS:
+            project: io-ntbc-domain-control-1900413
+            serviceAccountSecretRef:
+              key: service-account-key.json
+              name: google-cloud-dns
+        selector:
+          dnsZones:
+            - homelab.ntbc.io

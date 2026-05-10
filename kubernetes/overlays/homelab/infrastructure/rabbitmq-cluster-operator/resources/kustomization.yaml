@@ -1,0 +1,96 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - cluster-operator.yaml
+  - cnp-rabbitmq-cluster-operator.yaml
+
+patches:
+  # PSA baseline + Kubernetes recommended labels on the upstream Namespace.
+  # Also tags operator Deployment pods with PNI capability-consumer labels so
+  # existing CCNPs (controlplane-egress, monitoring-scrape, internet-egress)
+  # cover the operator without a custom per-operator egress CNP.
+  - target:
+      kind: Namespace
+      name: rabbitmq-system
+    patch: |
+      - op: add
+        path: /metadata/labels/app.kubernetes.io~1instance
+        value: homelab
+      - op: add
+        path: /metadata/labels/app.kubernetes.io~1managed-by
+        value: argocd
+      - op: add
+        path: /metadata/labels/app.kubernetes.io~1part-of
+        value: homelab
+      - op: add
+        path: /metadata/labels/platform.io~1network-interface-version
+        value: v1
+      - op: add
+        path: /metadata/labels/platform.io~1network-profile
+        value: managed
+      - op: add
+        path: /metadata/labels/platform.io~1consume.controlplane-egress
+        value: "true"
+      - op: add
+        path: /metadata/labels/platform.io~1consume.monitoring-scrape
+        value: "true"
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce
+        value: baseline
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce-version
+        value: latest
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1audit
+        value: restricted
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1audit-version
+        value: latest
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1warn
+        value: restricted
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1warn-version
+        value: latest
+  - target:
+      kind: Deployment
+      name: rabbitmq-cluster-operator
+      namespace: rabbitmq-system
+    patch: |
+      - op: add
+        path: /spec/template/metadata/labels/platform.io~1capability-consumer.controlplane-egress
+        value: "true"
+      - op: add
+        path: /spec/template/metadata/labels/platform.io~1capability-consumer.monitoring-scrape
+        value: "true"
+      - op: add
+        path: /spec/template/metadata/labels/platform.io~1capability-consumer.internet-egress
+        value: "true"
+  # Harden operator container: add readOnlyRootFilesystem + a tmpfs at /tmp
+  # so the Go controller-runtime can still write its small amount of temp
+  # state (cert cache, leader-election lock). Upstream v2.20.0 already
+  # sets drop-ALL + runAsNonRoot + seccompProfile; only rOFS was missing.
+  - target:
+      kind: Deployment
+      name: rabbitmq-cluster-operator
+      namespace: rabbitmq-system
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: rabbitmq-cluster-operator
+        namespace: rabbitmq-system
+      spec:
+        template:
+          spec:
+            containers:
+              - name: operator
+                securityContext:
+                  readOnlyRootFilesystem: true
+                volumeMounts:
+                  - name: tmp
+                    mountPath: /tmp
+            volumes:
+              - name: tmp
+                emptyDir: {}

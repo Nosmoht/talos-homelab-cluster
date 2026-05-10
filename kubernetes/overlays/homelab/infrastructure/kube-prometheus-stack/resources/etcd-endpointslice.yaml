@@ -1,0 +1,33 @@
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: monitoring-kube-prometheus-kube-etcd-manual
+  namespace: kube-system
+  labels:
+    app: kube-prometheus-stack-kube-etcd
+    release: monitoring
+    kubernetes.io/service-name: monitoring-kube-prometheus-kube-etcd
+    endpointslice.kubernetes.io/managed-by: homelab-gitops
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: etcd-monitoring
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+addressType: IPv4
+ports:
+  - name: http-metrics
+    protocol: TCP
+    port: 2381
+endpoints:
+  - addresses:
+      - 192.168.2.61
+    conditions:
+      ready: true
+  - addresses:
+      - 192.168.2.62
+    conditions:
+      ready: true
+  - addresses:
+      - 192.168.2.63
+    conditions:
+      ready: true

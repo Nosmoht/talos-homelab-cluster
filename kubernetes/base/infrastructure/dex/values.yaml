@@ -1,0 +1,44 @@
+replicaCount: 2
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+config:
+  storage:
+    type: memory
+  oauth2:
+    skipApprovalScreen: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+
+podSecurityContext:
+  runAsNonRoot: true
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp

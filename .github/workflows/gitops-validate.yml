@@ -1,0 +1,420 @@
+name: GitOps Validate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: sh
+    env:
+      KUSTOMIZE_VERSION: 5.3.0
+      KUSTOMIZE_SHA256_LINUX_AMD64: 3ab32f92360d752a2a53e56be073b649abc1e7351b912c0fb32b960d1def854c
+      CONFTEST_VERSION: v0.53.0
+      KYVERNO_CLI_VERSION: v1.17.1
+      SOPS_VERSION: v3.8.1
+      KSOPS_VERSION: v4.3.3
+      KUBECONFORM_VERSION: 0.6.7
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enforce Talos and Cilium ownership boundaries
+        run: |
+          set -eu
+
+          if grep -nE '^(talos-%:|talos-upgrade-k8s:|cilium-bootstrap:|cilium-bootstrap-check:|kubernetes/bootstrap/cilium/cilium.yaml:)' Makefile; then
+            echo "error: root Makefile contains Talos/Cilium lifecycle targets; move them to talos/Makefile"
+            exit 1
+          fi
+
+          defs="$(git grep -nE '^[[:space:]]*CILIUM_VERSION[[:space:]]*:=' -- Makefile talos/Makefile talos/versions.mk || true)"
+          count="$(printf "%s\n" "$defs" | grep -c . || true)"
+          if [ "$count" -ne 1 ] || ! printf "%s\n" "$defs" | grep -q '^talos/versions.mk:'; then
+            echo "error: CILIUM_VERSION must be defined exactly once in talos/versions.mk"
+            printf "%s\n" "$defs"
+            exit 1
+          fi
+
+      - name: Setup kustomize
+        uses: kustomize-everything/action-kustomize@v2.1.0
+        with:
+          version: ${{ env.KUSTOMIZE_VERSION }}
+          sha256-checksum: ${{ env.KUSTOMIZE_SHA256_LINUX_AMD64 }}
+
+      - name: Verify kustomize install
+        run: |
+          set -eu
+          kustomize version --short
+
+      - name: Setup conftest
+        uses: princespaghetti/setup-conftest@v1.2.0
+        with:
+          version: ${{ env.CONFTEST_VERSION }}
+
+      - name: Setup Kyverno CLI
+        uses: kyverno/action-install-cli@v0.2.0
+        with:
+          release: ${{ env.KYVERNO_CLI_VERSION }}
+
+      - name: Setup kubeconform
+        uses: bmuschko/setup-kubeconform@v1.0.0
+        with:
+          kubeconform-version: ${{ env.KUBECONFORM_VERSION }}
+
+      - name: Install sops and ksops (no decryption)
+        run: |
+          set -eu
+          mkdir -p "$HOME/.local/bin"
+
+          curl -fsSL "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64" -o "$HOME/.local/bin/sops"
+          chmod +x "$HOME/.local/bin/sops"
+
+          curl -fsSL "https://github.com/viaduct-ai/kustomize-sops/releases/download/${KSOPS_VERSION}/ksops_${KSOPS_VERSION#v}_Linux_x86_64.tar.gz" -o /tmp/ksops.tar.gz
+          tar -xzf /tmp/ksops.tar.gz -C /tmp
+          install -m 0755 /tmp/ksops "$HOME/.local/bin/ksops"
+
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Show tool versions
+        run: |
+          set -eu
+          mkdir -p .work
+          {
+            echo "kustomize: $(kustomize version --short || true)"
+            echo "conftest: $(conftest --version || true)"
+            echo "kubeconform: $(kubeconform -v || true)"
+            echo "trivy target version: $(cat .trivy-version)"
+            echo "sops: $(sops --version | head -n 1 || true)"
+            echo "ksops: $(ksops version 2>/dev/null || true)"
+          } | tee .work/tool-versions.txt
+
+      - name: Discover kustomize targets
+        run: ./scripts/discover_kustomize_targets.sh
+
+      - name: Render safe kustomize targets
+        run: ./scripts/render_kustomize_safe.sh
+
+      - name: Discover Argo CD Application manifests
+        run: ./scripts/discover_argocd_apps.sh
+
+      - name: Check required CLI tools
+        run: |
+          set -eu
+          command -v yq >/dev/null 2>&1 || { echo "error: yq is required but not installed"; exit 1; }
+          command -v kyverno >/dev/null 2>&1 || { echo "error: kyverno CLI is required but not installed"; exit 1; }
+          command -v grep >/dev/null 2>&1 || { echo "error: grep is required but not installed"; exit 1; }
+
+      - name: Validate Cilium bootstrap from talos workflow
+        run: |
+          set -eu
+          make -C talos cilium-bootstrap-check
+          if ! git diff --exit-code -- kubernetes/bootstrap/cilium/cilium.yaml; then
+            echo "error: kubernetes/bootstrap/cilium/cilium.yaml is out of date; run 'make -C talos cilium-bootstrap'"
+            exit 1
+          fi
+
+      - name: Validate secrets cleanup from Talos workflow
+        run: |
+          set -eu
+          make -C talos validate-secrets-cleanup
+
+      - name: Validate Kyverno policies from source manifests
+        run: |
+          set -eu
+          tmp_policies="$(mktemp)"
+          tmp_resources="$(mktemp)"
+          tmp_manifest_list="$(mktemp)"
+
+          git ls-files 'kubernetes/**/*.yaml' 'kubernetes/**/*.yml' > "$tmp_manifest_list"
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            matches="$(yq 'select(.apiVersion == "kyverno.io/v1" and (.kind == "ClusterPolicy" or .kind == "Policy"))' "$f")"
+            if [ -n "$matches" ]; then
+              printf "%s\n---\n" "$matches" >> "$tmp_policies"
+            fi
+          done < "$tmp_manifest_list"
+
+          if [ ! -s "$tmp_policies" ]; then
+            echo "notice: no Kyverno policies found in source manifests"
+            exit 0
+          fi
+
+          cat > "$tmp_resources" <<'EOF'
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: kyverno-ci-smoke
+            labels:
+              platform.io/network-interface-version: "v1"
+              platform.io/network-profile: "managed"
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: kyverno-ci-smoke
+            namespace: kyverno-ci-smoke
+            labels:
+              app.kubernetes.io/name: kyverno-ci-smoke
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app.kubernetes.io/name: kyverno-ci-smoke
+            template:
+              metadata:
+                labels:
+                  app.kubernetes.io/name: kyverno-ci-smoke
+              spec:
+                containers:
+                  - name: pause
+                    image: registry.k8s.io/pause:3.10
+          EOF
+
+          kyverno version
+          kyverno apply "$tmp_policies" --resource "$tmp_resources" --warn-no-pass=false
+
+      - name: Lint Kyverno JMESPath anti-patterns
+        run: |
+          set -eu
+          if grep -R -n -E --include='*.yaml' --include='*.yml' "request\\.object\\.metadata\\.labels\\.'[^']+'" kubernetes/; then
+            echo "error: invalid Kyverno JMESPath pattern detected. Use labels.\\\"key\\\" syntax for dotted/slashed label keys."
+            exit 1
+          fi
+
+      - name: Verify SOPS metadata (no decryption)
+        run: ./scripts/verify_sops_files.sh
+
+      - name: Kubeconform rendered manifests
+        run: |
+          set -eu
+          if [ ! -f .work/kustomize-rendered-files.txt ]; then
+            echo "notice: rendered file list not found, skipping kubeconform"
+            exit 0
+          fi
+
+          count=0
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            [ -f "$f" ] || continue
+            count=$((count + 1))
+            echo "kubeconform: $f"
+            # Ignore missing schemas for CRDs that are not vendored in CI.
+            kubeconform -strict -ignore-missing-schemas "$f"
+          done < .work/kustomize-rendered-files.txt
+
+          echo "kubeconform tested files: $count"
+
+      - name: Conftest policy checks
+        run: ./scripts/run_conftest.sh
+
+      # CI invokes the same scripts/run_trivy.sh wrapper as local pre-commit
+      # so both paths share --ignorefile + --skip-files + severity gate.
+      # Version pinned via .trivy-version (single source of truth) so setup-trivy
+      # installs the same binary used locally and cannot drift.
+      #
+      # Why not trivy-action? @v0.34.0 reads `trivyignores:` input but does not
+      # add --ignorefile to the actual invocation, silently dropping YAML-format
+      # ignores. Fixed in trivy-action@v0.35.0 (PR #508, 2026-03-07); but the
+      # setup-trivy + script split gives us identical local/CI code regardless.
+      - name: Read trivy version pin
+        id: trivy_version
+        run: echo "version=$(cat .trivy-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
+        with:
+          version: ${{ steps.trivy_version.outputs.version }}
+
+      - name: Trivy config scan + gate
+        run: ./scripts/run_trivy.sh
+
+      - name: Build PR summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -eu
+          mkdir -p .work
+
+          count_or_zero() {
+            file=$1
+            if [ -f "$file" ]; then
+              wc -l < "$file" | tr -d ' '
+            else
+              echo "0"
+            fi
+          }
+
+          rendered_summary="not available"
+          apps_summary="not available"
+
+          if [ -f .work/conftest-rendered.txt ]; then
+            rendered_summary=$(LC_ALL=C sed -E 's/\x1b\[[0-9;]*m//g' .work/conftest-rendered.txt | awk '/tests, .*passed, .*warnings, .*failures/ {line=$0} END {if (line != "") print line; else print "summary not found"}')
+          fi
+          if [ -f .work/conftest-applications.txt ]; then
+            apps_summary=$(LC_ALL=C sed -E 's/\x1b\[[0-9;]*m//g' .work/conftest-applications.txt | awk '/tests, .*passed, .*warnings, .*failures/ {line=$0} END {if (line != "") print line; else print "summary not found"}')
+          fi
+
+          trivy_failures="not available"
+          if [ -f .work/trivy-report.txt ]; then
+            trivy_failures=$(awk '/Failures:/ {sum += $2} END {if (sum == "") sum = 0; print sum}' .work/trivy-report.txt)
+          fi
+
+          conftest_warning_lines=".work/conftest-warnings-summary.txt"
+          trivy_top_lines=".work/trivy-top-findings.txt"
+          trivy_file_lines=".work/trivy-file-summary.txt"
+          : > "$conftest_warning_lines"
+          : > "$trivy_top_lines"
+          : > "$trivy_file_lines"
+
+          if [ -f .work/conftest-rendered.txt ] || [ -f .work/conftest-applications.txt ]; then
+            {
+              [ -f .work/conftest-rendered.txt ] && cat .work/conftest-rendered.txt
+              [ -f .work/conftest-applications.txt ] && cat .work/conftest-applications.txt
+            } | LC_ALL=C sed -E 's/\x1b\[[0-9;]*m//g' | awk '/WARN/ {print}' | head -n 10 > "$conftest_warning_lines" || true
+          fi
+
+          if [ -f .work/trivy-report.txt ]; then
+            awk '/KSV-[0-9]+ \((HIGH|CRITICAL)\):/ {print}' .work/trivy-report.txt | head -n 10 > "$trivy_top_lines" || true
+            awk '
+              /\.ya?ml \(kubernetes\)$/ {file=$1}
+              /^Failures:/ {print file " (" $2 ")"}
+            ' .work/trivy-report.txt | head -n 10 > "$trivy_file_lines" || true
+          fi
+
+          early_failure_note=""
+          if [ ! -f .work/kustomize-targets.txt ] && [ ! -f .work/conftest-rendered.txt ] && [ ! -f .work/trivy-report.txt ]; then
+            early_failure_note="Validation likely failed during tool setup before repository checks started."
+          fi
+
+          {
+            echo "<!-- gitops-validate-report -->"
+            echo "## GitOps Validate Report"
+            echo ""
+            echo "- Job status: \`$JOB_STATUS\`"
+            if [ -n "$early_failure_note" ]; then
+              echo "- Note: $early_failure_note"
+            fi
+            echo "- Kustomize targets discovered: \`$(count_or_zero .work/kustomize-targets.txt)\`"
+            echo "- Safe rendered targets: \`$(count_or_zero .work/kustomize-safe-targets.txt)\`"
+            echo "- Unsafe skipped targets: \`$(count_or_zero .work/kustomize-unsafe-targets.txt)\`"
+            echo "- Rendered output files: \`$(count_or_zero .work/kustomize-rendered-files.txt)\`"
+            echo "- Argo CD Application manifests: \`$(count_or_zero .work/argocd-applications.txt)\`"
+            echo "- SOPS-encrypted files found: \`$(count_or_zero .work/sops-files.txt)\`"
+            echo "- Conftest rendered summary: \`$rendered_summary\`"
+            echo "- Conftest applications summary: \`$apps_summary\`"
+            echo "- Trivy HIGH/CRITICAL failures: \`$trivy_failures\`"
+            echo "- Runtime validation: \`not executed in this workflow\`"
+            echo ""
+            echo "### Top Conftest Warnings"
+            if [ -s "$conftest_warning_lines" ]; then
+              sed 's/^/- /' "$conftest_warning_lines"
+            else
+              echo "- none"
+            fi
+            echo ""
+            echo "### Trivy Affected Files"
+            if [ -s "$trivy_file_lines" ]; then
+              sed 's/^/- /' "$trivy_file_lines"
+            else
+              echo "- none"
+            fi
+            echo ""
+            echo "### Top Trivy Findings"
+            if [ -s "$trivy_top_lines" ]; then
+              sed 's/^/- /' "$trivy_top_lines"
+            else
+              echo "- none"
+            fi
+            echo ""
+            echo "Artifacts in \`.work/\` include target lists and detailed reports."
+          } > .work/pr-comment.md
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- gitops-validate-report -->';
+            const path = '.work/pr-comment.md';
+            if (!fs.existsSync(path)) {
+              core.warning('PR summary file not found; skipping comment update.');
+              return;
+            }
+            const body = fs.readFileSync(path, 'utf8');
+            const issue_number = context.payload.pull_request.number;
+            const { owner, repo } = context.repo;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100
+            });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+            }
+
+      - name: Upload diagnostics (failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitops-validate-diagnostics
+          path: |
+            .work/
+
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (full history for secret scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks v8.24.3
+        env:
+          GITLEAKS_VERSION: 8.24.3
+          GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          cd "$tmp"
+          curl -fsSLo gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/gitleaks" version
+
+      - name: Run gitleaks (full history)
+        run: gitleaks detect --source . --redact --verbose --exit-code 1 --no-banner

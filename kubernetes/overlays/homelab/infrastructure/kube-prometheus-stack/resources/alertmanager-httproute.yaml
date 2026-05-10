@@ -1,0 +1,53 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: httproute
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: homelab-gateway
+      namespace: default
+      sectionName: https
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: homelab-gateway
+      namespace: default
+      sectionName: internal-trusted-https
+  hostnames:
+    - alertmanager.homelab.local
+    - alertmanager.lan.homelab.ntbc.io
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: "max-age=31536000; includeSubDomains"
+              - name: X-Frame-Options
+                value: DENY
+              - name: X-Content-Type-Options
+                value: nosniff
+              - name: Referrer-Policy
+                value: strict-origin-when-cross-origin
+              - name: Permissions-Policy
+                value: "camera=(), microphone=(), geolocation=()"
+              - name: X-XSS-Protection
+                value: "1; mode=block"
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: alertmanager-oauth2-proxy
+          port: 4180
+          weight: 1

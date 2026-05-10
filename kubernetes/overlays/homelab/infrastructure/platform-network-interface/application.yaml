@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-network-interface
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+  sources:
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      path: kubernetes/base/infrastructure/platform-network-interface

@@ -1,0 +1,30 @@
+machine:
+  install:
+    disk: /dev/disk/by-path/pci-0000:00:17.0-ata-3
+  network:
+    interfaces:
+      - deviceSelector:
+          hardwareAddr: 00:e0:3c:68:46:45
+        addresses:
+          - 192.168.2.67/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.2.1
+    nameservers:
+      - 192.168.2.1
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: null
+hostname: node-gpu-01
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-storage
+provisioning:
+  diskSelector:
+    match: disk.wwid == 'naa.5001b444a5673347'
+  minSize: 450GiB
+  maxSize: 450GiB
+filesystem:
+  type: xfs

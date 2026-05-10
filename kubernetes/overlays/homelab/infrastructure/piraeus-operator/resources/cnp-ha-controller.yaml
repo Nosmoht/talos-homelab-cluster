@@ -1,0 +1,48 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ha-controller
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/component: ha-controller
+  ingress:
+    # Kubelet health probes (httpGet /healthz port 8000)
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+  egress:
+    # Kubernetes API (HA failover decisions)
+    - toCIDRSet:
+        - cidr: 10.96.0.1/32
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "6443"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

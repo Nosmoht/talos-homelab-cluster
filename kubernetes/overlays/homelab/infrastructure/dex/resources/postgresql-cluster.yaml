@@ -1,0 +1,24 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dex-postgresql
+  namespace: dex
+  labels:
+    app.kubernetes.io/name: dex
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: postgresql
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  instances: 1
+
+  storage:
+    storageClass: linstor-csi
+    size: 2Gi
+
+  enableSuperuserAccess: false
+
+  bootstrap:
+    initdb:
+      database: dex
+      owner: dex

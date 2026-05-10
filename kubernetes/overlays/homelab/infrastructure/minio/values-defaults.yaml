@@ -1,0 +1,36 @@
+tenant:
+  name: minio
+  configSecret:
+    name: myminio-env-configuration
+    existingSecret: true
+  pools:
+    - servers: 6
+      name: pool-0
+      volumesPerServer: 1
+      size: 50Gi
+      storageClassName: linstor-nvme-noreplica
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+      containerSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault
+  metrics:
+    enabled: true
+    port: 9000
+    protocol: https
+  certificate:
+    requestAutoCert: true
+  features:
+    bucketDNS: false
+    enableSFTP: false

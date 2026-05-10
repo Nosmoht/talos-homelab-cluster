@@ -1,0 +1,56 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: alloy
+  ingress:
+    # Prometheus metrics scraping
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "12345"
+              protocol: TCP
+  egress:
+    # Loki log push
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: loki
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+            - port: "3100"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # GeoIP database download for init container
+    - toFQDNs:
+        - matchName: download.db-ip.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

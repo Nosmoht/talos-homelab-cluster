@@ -1,0 +1,29 @@
+installCRDs: true
+
+processClusterStore: false
+processClusterExternalSecret: false
+processClusterGenerator: false
+processClusterPushSecret: false
+
+podLabels:
+  platform.io/capability-provider.monitoring-scrape: "true"
+
+webhook:
+  podLabels:
+    platform.io/capability-provider.monitoring-scrape: "true"
+
+certController:
+  podLabels:
+    platform.io/capability-provider.monitoring-scrape: "true"
+
+serviceMonitor:
+  enabled: true
+  renderMode: skipIfMissing
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -1,0 +1,44 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: omada-controller
+  labels:
+    app.kubernetes.io/name: omada-controller
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: lb-pool
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  blocks:
+    - start: 192.168.2.11
+      stop: 192.168.2.11
+  serviceSelector:
+    matchLabels:
+      app.kubernetes.io/name: omada-controller
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: omada-controller
+  labels:
+    app.kubernetes.io/name: omada-controller
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: l2-announcement
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  loadBalancerIPs: true
+  externalIPs: false
+  interfaces:
+    # Match the physical LAN NIC across the heterogeneous node fleet:
+    # enp0s31f6 on Lenovo ThinkCentre nodes (Intel I219-V),
+    # enx* on node-gpu-01 (Realtek r8152 USB NIC).
+    - ^enp0s31f6$
+    - ^enx.*$
+    - ^eth0$
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/os: linux
+  serviceSelector:
+    matchLabels:
+      app.kubernetes.io/name: omada-controller

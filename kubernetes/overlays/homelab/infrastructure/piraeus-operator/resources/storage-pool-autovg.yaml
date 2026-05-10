@@ -1,0 +1,300 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: linstor-storage-pool-autovg
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-storage-pool-autovg
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: linstor-storage-pool-autovg
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-storage-pool-autovg
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: linstor-storage-pool-autovg
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-storage-pool-autovg
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: linstor-storage-pool-autovg
+subjects:
+  - kind: ServiceAccount
+    name: linstor-storage-pool-autovg
+    namespace: piraeus-datastore
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: linstor-storage-pool-autovg
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-storage-pool-autovg
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: linstor-storage-pool-autovg
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-storage-pool-autovg
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: linstor-storage-pool-autovg
+subjects:
+  - kind: ServiceAccount
+    name: linstor-storage-pool-autovg
+    namespace: piraeus-datastore
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: linstor-storage-pool-autovg
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: linstor-storage-pool-autovg
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: piraeus-datastore
+      app.kubernetes.io/component: linstor-storage-pool-autovg
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: piraeus-datastore
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/component: linstor-storage-pool-autovg
+        app.kubernetes.io/part-of: homelab
+        app.kubernetes.io/managed-by: argocd
+    spec:
+      serviceAccountName: linstor-storage-pool-autovg
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: reconciler
+          image: alpine/kubectl:1.35.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          command:
+            - /bin/sh
+            - -ceu
+            - |
+              NAMESPACE="${NAMESPACE:-piraeus-datastore}"
+              CONTROLLER_SELECTOR="${CONTROLLER_SELECTOR:-app.kubernetes.io/component=linstor-controller}"
+              POOL_NAME="${POOL_NAME:-lvm-thick}"
+              VG_NAME="${VG_NAME:-linstor}"
+              DEVICE="${DEVICE:-/dev/nvme0n1}"
+              # Only target nodes with NVMe hardware detected by NFD
+              NODE_LABEL_SELECTOR="${NODE_LABEL_SELECTOR:-feature.node.kubernetes.io/storage-nvme.present=true}"
+              WATCH_RECONNECT_DELAY="${WATCH_RECONNECT_DELAY:-5}"
+
+              log() {
+                printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+              }
+
+              trim() {
+                awk '{ gsub(/^[ \t]+|[ \t]+$/, "", $0); print }'
+              }
+
+              controller_pod() {
+                kubectl -n "${NAMESPACE}" get pods -l "${CONTROLLER_SELECTOR}" \
+                  -o jsonpath='{range .items[*]}{.metadata.name}{"|"}{.status.phase}{"\n"}{end}' \
+                  | awk -F'|' '$2=="Running" { print $1; exit }'
+              }
+
+              linstor_cmd() {
+                pod="$(controller_pod)"
+                if [ -z "${pod}" ]; then
+                  log "LINSTOR controller pod not running yet"
+                  return 1
+                fi
+                kubectl -n "${NAMESPACE}" exec "${pod}" -- linstor --no-color "$@"
+              }
+
+              storage_pool_exists() {
+                node="$1"
+                count="$(linstor_cmd storage-pool list -p -s "${POOL_NAME}" -n "${node}" 2>/dev/null | awk -F'|' '
+                  NR > 2 && $2 !~ /^-+$/ {
+                    sp=$2
+                    gsub(/^[ \t]+|[ \t]+$/, "", sp)
+                    if (sp != "") c++
+                  }
+                  END { print c+0 }
+                ')"
+                [ "${count:-0}" -gt 0 ]
+              }
+
+              node_ready() {
+                node="$1"
+                status="$(kubectl get node "${node}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)"
+                [ "${status}" = "True" ]
+              }
+
+              node_needs_repair() {
+                node="$1"
+                linstor_cmd storage-pool list 2>/dev/null | awk -F'|' -v pool="${POOL_NAME}" -v target="${node}" '
+                  function clean(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+                  $2 ~ pool {
+                    sp_node=clean($3)
+                    total=clean($7)
+                    if (sp_node == target && (total == "" || total == "0 KiB")) {
+                      found=1
+                    }
+                  }
+                  END { exit(found ? 0 : 1) }
+                '
+              }
+
+              restart_node_pods() {
+                node="$1"
+                for selector in \
+                  "app.kubernetes.io/component=linstor-satellite" \
+                  "app.kubernetes.io/component=linstor-csi-node"
+                do
+                  pods="$(kubectl -n "${NAMESPACE}" get pods -l "${selector}" --field-selector "spec.nodeName=${node}" -o name 2>/dev/null || true)"
+                  [ -z "${pods}" ] && continue
+                  for pod in ${pods}; do
+                    log "Deleting ${pod} on ${node}"
+                    kubectl -n "${NAMESPACE}" delete "${pod}" --wait=false >/dev/null || true
+                  done
+                done
+              }
+
+              ensure_pool_capacity() {
+                node="$1"
+                if ! node_ready "${node}"; then
+                  log "Node ${node} is not Ready; skip"
+                  return 0
+                fi
+
+                if ! node_needs_repair "${node}"; then
+                  return 0
+                fi
+
+                cmd="physical-storage create-device-pool lvm --pool-name ${VG_NAME}"
+                if ! storage_pool_exists "${node}"; then
+                  cmd="${cmd} --storage-pool ${POOL_NAME}"
+                fi
+                cmd="${cmd} ${node} ${DEVICE}"
+
+                log "Node ${node} has zero capacity in ${POOL_NAME}; running: linstor ${cmd}"
+                if ! output="$(linstor_cmd ${cmd} 2>&1)"; then
+                  if printf '%s\n' "${output}" | grep -Eqi "already exists|already in volume group|already initialized|is in use|already used by"; then
+                    log "Node ${node}: non-fatal repair result: ${output}"
+                  else
+                    log "Node ${node}: repair failed: ${output}"
+                    return 1
+                  fi
+                else
+                  log "Node ${node}: repair success: ${output}"
+                fi
+
+                restart_node_pods "${node}"
+                return 0
+              }
+
+              reconcile_all_nodes() {
+                kubectl get nodes -l "${NODE_LABEL_SELECTOR}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while IFS= read -r node; do
+                  [ -z "${node}" ] && continue
+                  ensure_pool_capacity "${node}" || true
+                done
+              }
+
+              wait_for_controller() {
+                for _ in $(seq 1 120); do
+                  if linstor_cmd node list >/dev/null 2>&1; then
+                    return 0
+                  fi
+                  sleep 2
+                done
+                return 1
+              }
+
+              log "Starting event-driven LINSTOR storage-pool reconciler"
+              while ! wait_for_controller; do
+                log "LINSTOR controller not ready; retrying in 30s"
+                sleep 30
+              done
+
+              reconcile_all_nodes
+
+              while true; do
+                log "Watching node events"
+                if ! kubectl get nodes -l "${NODE_LABEL_SELECTOR}" -w --no-headers -o custom-columns=NAME:.metadata.name 2>/tmp/node-watch.err \
+                  | while IFS= read -r node; do
+                      node="$(printf '%s\n' "${node}" | trim)"
+                      [ -z "${node}" ] && continue
+                      ensure_pool_capacity "${node}" || true
+                    done
+                then
+                  log "Node watch stream ended: $(cat /tmp/node-watch.err 2>/dev/null || true)"
+                fi
+                sleep "${WATCH_RECONNECT_DELAY}"
+                reconcile_all_nodes
+              done
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

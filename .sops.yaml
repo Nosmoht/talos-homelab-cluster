@@ -1,0 +1,5 @@
+creation_rules:
+  - path_regex: talos/secrets\.yaml$
+    age: age1t7jy2m2pqwnwfhx0dk85trhw9aae9qln9ng6m4tgy47jk3ngr93spv0hsg
+  - path_regex: kubernetes/.*\.sops\.yaml$
+    age: age1t7jy2m2pqwnwfhx0dk85trhw9aae9qln9ng6m4tgy47jk3ngr93spv0hsg

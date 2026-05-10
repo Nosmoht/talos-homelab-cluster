@@ -1,0 +1,217 @@
+# Trivy findings exception file (schema: Trivy v0.48+)
+# See docs/trivy-policy.md for the exception workflow.
+#
+# Each entry MUST include:
+#   - id:          check-ID (KSV-xxxx, CVE-xxxx, ...)
+#   - paths:       list of files this exception scopes to
+#   - statement:   human-readable justification — WHY the finding is
+#                  accepted, what breaks if we "fix" it
+#   - expired_at:  ISO date (YYYY-MM-DD) — forces annual review
+#
+# Baseline date: 2026-04-16 (from PR #127 CI report)
+# Review cadence: annual. Default expiry: 2027-04-16.
+#
+# Categories:
+#   (1) rabbitmq-cluster-operator — MIXED (KSV-0014 patched in commit 4;
+#       KSV-0041/0053/0056 are RBAC required by operator)
+#   (2) Multus CNI (architectural)
+#   (3) KubeVirt / CDI vendored upstream bundles
+#   (4) rabbitmq-messaging-topology-operator RBAC
+
+misconfigurations:
+  # ========================================================================
+  # (1) rabbitmq-cluster-operator
+  # ========================================================================
+  - id: AVD-KSV-0014
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/rabbitmq-cluster-operator/resources/cluster-operator.yaml
+    statement: >-
+      The raw upstream bundle does NOT set readOnlyRootFilesystem, but
+      kustomization.yaml patches it to true on the rendered operator
+      Deployment (see kubernetes/overlays/.../rabbitmq-cluster-operator/
+      resources/kustomization.yaml patch block). Trivy scans the raw file,
+      not the rendered output, so the finding persists in static scan but
+      is not actually deployed. Annual review should confirm the patch
+      still resolves at render time.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0041
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/rabbitmq-cluster-operator/resources/cluster-operator.yaml
+    statement: >-
+      rabbitmq-cluster-operator reconciles RabbitmqCluster CRs that own
+      TLS/admin/erlang-cookie Secrets. The operator controller must read
+      and update these Secrets as they rotate; scoping away "secrets"
+      access breaks broker reconciliation.
+      Upstream: github.com/rabbitmq/cluster-operator v2.20.x.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0053
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/rabbitmq-cluster-operator/resources/cluster-operator.yaml
+    statement: >-
+      `pods/exec` is required for operator-side rabbitmqctl diagnostics
+      invoked during cluster health checks + upgrade verification.
+      Upstream: github.com/rabbitmq/cluster-operator v2.20.x.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0056
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/rabbitmq-cluster-operator/resources/cluster-operator.yaml
+    statement: >-
+      ClusterRole needs services/endpoints/endpointslices to manage the
+      headless Service fronting the RabbitmqCluster StatefulSet +
+      peer-discovery mesh. Upstream-required capability; scoping away
+      breaks cluster formation.
+    expired_at: 2027-04-16
+
+  # ========================================================================
+  # (2) Multus CNI — architectural requirements for CNI binary install
+  # ========================================================================
+  - id: AVD-KSV-0009
+    paths:
+      - kubernetes/base/infrastructure/multus-cni/daemonset.yaml
+    statement: >-
+      hostNetwork is required for Multus — it writes /host/etc/cni/net.d
+      configs via hostPath and must share the host's netns to configure
+      CNI cleanly. Upstream: github.com/k8snetworkplumbingwg/multus-cni
+      v4.2.4 install docs.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0014
+    paths:
+      - kubernetes/base/infrastructure/multus-cni/daemonset.yaml
+    statement: >-
+      Multus init + runtime containers write CNI binaries to
+      /host/opt/cni/bin via bidirectional mount propagation — the
+      install flow requires a writable rootfs. readOnlyRootFilesystem
+      incompatible with upstream v4.2.4 design. Revisit if upstream
+      ships a read-only variant.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0017
+    paths:
+      - kubernetes/base/infrastructure/multus-cni/daemonset.yaml
+    statement: >-
+      privileged: true required for CNI binary installation onto host
+      (/opt/cni/bin via bidirectional mountPropagation) and for the
+      runtime container to manage /host/etc/cni/net.d. Dropping
+      privileged breaks CNI on Talos worker nodes.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0118
+    paths:
+      - kubernetes/base/infrastructure/multus-cni/daemonset.yaml
+    statement: >-
+      Multus DaemonSet intentionally runs as root for hostPath access
+      to /etc/cni/net.d + /opt/cni/bin. Non-root mode not supported
+      upstream as of v4.2.4.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0046
+    paths:
+      - kubernetes/base/infrastructure/multus-cni/rbac.yaml
+    statement: >-
+      ClusterRole wildcard on k8s.cni.cncf.io/*/* is Multus upstream
+      standard for managing NetworkAttachmentDefinition CRs. Scoping
+      narrower breaks CNI dynamic-network attachment for consumer pods.
+    expired_at: 2027-04-16
+
+  # ========================================================================
+  # (3) KubeVirt + CDI operators — vendored upstream bundles
+  # ========================================================================
+  - id: AVD-KSV-0014
+    paths:
+      - kubernetes/base/infrastructure/kubevirt/kubevirt-operator.yaml
+      - kubernetes/base/infrastructure/kubevirt-cdi/cdi-operator.yaml
+    statement: >-
+      Vendored upstream operator bundles (7,669 / 5,486 lines). Patching
+      the Deployment via Kustomize would drift on every upstream release.
+      Operators write state + caches to local FS; readOnlyRootFilesystem
+      would break reconcile loops.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0041
+    paths:
+      - kubernetes/base/infrastructure/kubevirt/kubevirt-operator.yaml
+      - kubernetes/base/infrastructure/kubevirt-cdi/cdi-operator.yaml
+    statement: >-
+      KubeVirt + CDI operators reconcile TLS certs + webhook credentials
+      stored in cluster-scoped Secrets. Secret-management RBAC required
+      upstream; scoping away breaks operator bootstrap.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0046
+    paths:
+      - kubernetes/base/infrastructure/kubevirt/kubevirt-operator.yaml
+      - kubernetes/base/infrastructure/kubevirt-cdi/cdi-operator.yaml
+    statement: >-
+      Operators manage their own CRDs + DataVolume/VirtualMachine
+      resources across all namespaces. Wildcard resource verbs are
+      upstream-required for CRD lifecycle management.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0053
+    paths:
+      - kubernetes/base/infrastructure/kubevirt/kubevirt-operator.yaml
+    statement: >-
+      pods/exec required by virt-operator for VM console + VNC proxy
+      flows + live-migration orchestration. Upstream-required.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0056
+    paths:
+      - kubernetes/base/infrastructure/kubevirt/kubevirt-operator.yaml
+      - kubernetes/base/infrastructure/kubevirt-cdi/cdi-operator.yaml
+    statement: >-
+      Operators manage services/endpoints/endpointslices for virt-api,
+      virt-handler, CDI uploadproxy, and CDI clone service. Upstream-
+      required for operator's service-mesh reconcile.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0114
+    paths:
+      - kubernetes/base/infrastructure/kubevirt/kubevirt-operator.yaml
+      - kubernetes/base/infrastructure/kubevirt-cdi/cdi-operator.yaml
+    statement: >-
+      KubeVirt virt-operator + CDI cdi-operator manage their own
+      MutatingWebhookConfiguration + ValidatingWebhookConfiguration
+      resources for API-level VM/DV validation + defaulting. Webhook
+      config RBAC required; scoping away breaks webhook bootstrap +
+      cert rotation.
+    expired_at: 2027-04-16
+
+  # ========================================================================
+  # (4) rabbitmq-messaging-topology-operator
+  # ========================================================================
+  - id: AVD-KSV-0041
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/rabbitmq-messaging-topology-operator/resources/messaging-topology-operator-with-certmanager.yaml
+    statement: >-
+      messaging-topology-operator manages RabbitMQ User + Vhost +
+      Permission CRs whose credentials and TLS certs are stored in
+      Secrets. Secret RBAC is upstream-required.
+      Upstream: github.com/rabbitmq/messaging-topology-operator.
+    expired_at: 2027-04-16
+
+  # ========================================================================
+  # (5) pi-public-ingress — sole WAN entrypoint (hostNetwork+hostPort architectural)
+  # ========================================================================
+  - id: AVD-KSV-0024
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/pi-public-ingress/resources/deployment.yaml
+    statement: >-
+      pi-public-ingress is the sole WAN entrypoint since 2026-04-17 (see
+      docs/adr-pi-sole-public-ingress.md). FritzBox forwards TCP/443 directly
+      to the Pi NIC; the nginx stream pod must bind hostPort 443 to receive
+      those packets. The macvlan-on-pod alternative was demonstrated
+      structurally unsupported on FRITZ!OS ≥ 8.25 (see
+      docs/2026-04-15-fritzbox-macvlan-port-forward-exhaustion.md). Removing
+      hostPort breaks the entire public ingress chain. Node-pi-01 is
+      taint-isolated (homelab.io/pi-reserved=true:NoSchedule) so blast radius
+      of the host port is bounded to one node.
+    expired_at: 2027-04-16
+  - id: AVD-KSV-0009
+    paths:
+      - kubernetes/overlays/homelab/infrastructure/pi-public-ingress/resources/deployment.yaml
+    statement: >-
+      pi-public-ingress requires hostNetwork:true on node-pi-01 because it is
+      the sole WAN entrypoint (see docs/adr-pi-sole-public-ingress.md). The
+      nginx stream pod must share the host network namespace so FritzBox
+      port-forwards (TCP/443 → Pi NIC) deliver packets directly to the pod's
+      listener; without hostNetwork the Pod-CIDR-routed alternative fails for
+      the same FRITZ!OS ≥ 8.25 macvlan-port-forward exhaustion reason
+      documented in docs/2026-04-15-fritzbox-macvlan-port-forward-exhaustion.md.
+      Same architectural coupling as the KSV-0024 entry above; both findings
+      collapse to a single root cause (Pi-NIC-direct WAN delivery). Node-pi-01
+      is taint-isolated (homelab.io/pi-reserved=true:NoSchedule), bounding
+      blast radius of host-namespace sharing to one node.
+    expired_at: 2027-04-16

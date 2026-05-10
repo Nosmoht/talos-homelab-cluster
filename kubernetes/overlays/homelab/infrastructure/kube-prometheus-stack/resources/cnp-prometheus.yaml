@@ -1,0 +1,192 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  ingress:
+    # Thanos Query -> Thanos sidecar gRPC
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: thanos-query
+      toPorts:
+        - ports:
+            - port: "10901"
+              protocol: TCP
+    # Prometheus peer scraping and self-monitoring
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+            - port: "9090"
+              protocol: TCP
+            - port: "10902"
+              protocol: TCP
+  egress:
+    # Scrape targets in monitoring namespace
+    - toEndpoints:
+        - {}
+    # NVIDIA DCGM exporter metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: nvidia-dcgm-exporter
+            app.kubernetes.io/name: dcgm-exporter
+      toPorts:
+        - ports:
+            - port: "9400"
+              protocol: TCP
+    # cert-manager metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cert-manager
+            app.kubernetes.io/instance: cert-manager
+            app.kubernetes.io/component: controller
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cert-manager
+            app.kubernetes.io/instance: cert-manager
+            app.kubernetes.io/component: cainjector
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cert-manager
+            app.kubernetes.io/instance: cert-manager
+            app.kubernetes.io/component: webhook
+      toPorts:
+        - ports:
+            - port: "9402"
+              protocol: TCP
+    # piraeus-datastore drbd-reactor metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: piraeus-datastore
+            app.kubernetes.io/component: linstor-satellite
+      toPorts:
+        - ports:
+            - port: "9942"
+              protocol: TCP
+    # piraeus-datastore linstor-controller metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: piraeus-datastore
+            app.kubernetes.io/component: linstor-controller
+      toPorts:
+        - ports:
+            - port: "3370"
+              protocol: TCP
+    # MinIO metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: minio
+            v1.min.io/tenant: minio
+      toPorts:
+        - ports:
+            - port: "9000"
+              protocol: TCP
+    # Vault metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vault
+            app.kubernetes.io/name: vault
+            vault_cr: vault
+      toPorts:
+        - ports:
+            - port: "9091"
+              protocol: TCP
+    # cilium and hubble metrics (cross-namespace)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: cilium
+      toPorts:
+        - ports:
+            - port: "9962"
+              protocol: TCP
+            - port: "9965"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            io.cilium/app: operator
+      toPorts:
+        - ports:
+            - port: "9963"
+              protocol: TCP
+    # Node-IP scrape targets: node-exporter, kubelet, control-plane, tetragon (hostNetwork).
+    # NOTE: remote-node entity requires allowRemoteNodeIdentities=true (set in Cilium WireGuard config).
+    - toEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "2112"
+              protocol: TCP
+            - port: "9100"
+              protocol: TCP
+            - port: "9962"
+              protocol: TCP
+            - port: "9963"
+              protocol: TCP
+            - port: "9965"
+              protocol: TCP
+            - port: "2381"
+              protocol: TCP
+            - port: "10250"
+              protocol: TCP
+            - port: "10257"
+              protocol: TCP
+            - port: "10259"
+              protocol: TCP
+    # Kubernetes API for service discovery
+    - toCIDRSet:
+        - cidr: 10.96.0.1/32
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "6443"
+              protocol: TCP
+            - port: "2381"
+              protocol: TCP
+            - port: "10250"
+              protocol: TCP
+            - port: "10257"
+              protocol: TCP
+            - port: "10259"
+              protocol: TCP
+    # Alertmanager
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: alertmanager
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+            - port: "9153"
+              protocol: TCP

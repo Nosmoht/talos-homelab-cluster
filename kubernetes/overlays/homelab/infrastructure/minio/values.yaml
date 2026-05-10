@@ -1,0 +1,35 @@
+tenant:
+  pools:
+    - servers: 6
+      name: pool-0
+      volumesPerServer: 1
+      size: 50Gi
+      storageClassName: linstor-nvme-noreplica
+      nodeSelector:
+        feature.node.kubernetes.io/storage-nvme.present: "true"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: v1.min.io/tenant
+                    operator: In
+                    values:
+                      - minio
+              topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+      containerSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault

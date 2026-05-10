@@ -1,0 +1,23 @@
+# StorageClass optimized for KubeVirt VM block volumes.
+# No fstype — VM disks use volumeMode: Block (raw block device for QEMU).
+# 2 replicas for HA. Cold migration only (LINSTOR/DRBD is RWO).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: linstor-vm
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=false,Replace=true
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: storage-class-vm
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+provisioner: linstor.csi.linbit.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  autoPlace: "2"
+  storagePool: lvm-thick
+  property.linstor.csi.linbit.com/PrefNic: storage-vlan110

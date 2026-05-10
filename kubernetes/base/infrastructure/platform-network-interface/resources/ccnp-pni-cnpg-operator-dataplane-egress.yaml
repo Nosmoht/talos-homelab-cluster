@@ -1,0 +1,25 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-cnpg-operator-dataplane-egress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io.kubernetes.pod.namespace: cnpg-system
+      app.kubernetes.io/name: cloudnative-pg
+  egress:
+    # Managed CNPG cluster pods (PostgreSQL + metrics)
+    - toEndpoints:
+        - matchExpressions:
+            - key: cnpg.io/cluster
+              operator: Exists
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+            - port: "8000"
+              protocol: TCP

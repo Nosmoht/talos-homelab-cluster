@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - projects
+  - infrastructure
+  - apps
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: homelab
+      app.kubernetes.io/part-of: homelab
+    includeSelectors: false

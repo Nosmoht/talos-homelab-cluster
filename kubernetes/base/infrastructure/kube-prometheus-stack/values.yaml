@@ -1,0 +1,35 @@
+prometheusOperator:
+  enabled: true
+
+prometheus:
+  prometheusSpec:
+    serviceDiscoveryRole: EndpointSlice
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    probeSelectorNilUsesHelmValues: false
+    probeSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleSelector: {}
+    enableRemoteWriteReceiver: true
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+
+grafana:
+  defaultDashboardsEnabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+    datasources:
+      enabled: false
+
+kubeProxy:
+  enabled: false
+
+kubeEtcd:
+  enabled: false

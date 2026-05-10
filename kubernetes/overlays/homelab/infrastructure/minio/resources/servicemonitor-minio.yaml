@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: minio
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - minio
+  selector: {}
+  endpoints:
+    - port: https-minio
+      path: /minio/v2/metrics/cluster
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+      interval: 30s

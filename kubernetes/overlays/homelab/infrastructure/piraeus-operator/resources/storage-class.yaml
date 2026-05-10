@@ -1,0 +1,22 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: linstor-csi
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+    argocd.argoproj.io/sync-options: ServerSideApply=false,Replace=true
+provisioner: linstor.csi.linbit.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  autoPlace: "2"
+  storagePool: lvm-thick
+  csi.storage.k8s.io/fstype: xfs
+  property.linstor.csi.linbit.com/PrefNic: storage-vlan110

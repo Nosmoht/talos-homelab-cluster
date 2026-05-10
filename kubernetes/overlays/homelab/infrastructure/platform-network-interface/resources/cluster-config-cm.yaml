@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+  namespace: kyverno
+  labels:
+    app.kubernetes.io/name: cluster-config
+    app.kubernetes.io/component: kyverno-context
+    app.kubernetes.io/managed-by: argocd
+data:
+  external_hostname_pattern: '^.*\.homelab\.ntbc\.io$'

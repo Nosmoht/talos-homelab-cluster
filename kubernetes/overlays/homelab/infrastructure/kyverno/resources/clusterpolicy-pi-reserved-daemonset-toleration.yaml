@@ -1,0 +1,80 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pi-reserved-daemonset-toleration
+  labels:
+    app.kubernetes.io/name: pi-reserved-daemonset-toleration
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: policy-governance
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  admission: true
+  background: false
+  rules:
+    - name: add-pi-toleration-cilium
+      match:
+        any:
+          - resources:
+              kinds: [DaemonSet]
+              names: [cilium]
+              namespaces: [kube-system]
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                tolerations:
+                  - key: homelab.io/pi-reserved
+                    operator: Equal
+                    value: "true"
+                    effect: NoSchedule
+    - name: add-pi-toleration-monitoring-ds
+      match:
+        any:
+          - resources:
+              kinds: [DaemonSet]
+              namespaces: [monitoring]
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                tolerations:
+                  - key: homelab.io/pi-reserved
+                    operator: Equal
+                    value: "true"
+                    effect: NoSchedule
+    - name: add-pi-toleration-tetragon
+      match:
+        any:
+          - resources:
+              kinds: [DaemonSet]
+              names: [tetragon]
+              namespaces: [tetragon]
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                tolerations:
+                  - key: homelab.io/pi-reserved
+                    operator: Equal
+                    value: "true"
+                    effect: NoSchedule
+    - name: add-pi-toleration-nfd
+      match:
+        any:
+          - resources:
+              kinds: [DaemonSet]
+              namespaces: [node-feature-discovery]
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                tolerations:
+                  - key: homelab.io/pi-reserved
+                    operator: Equal
+                    value: "true"
+                    effect: NoSchedule

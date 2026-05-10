@@ -1,0 +1,36 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: homelab-gateway-macvlan
+  namespace: default
+  labels:
+    app.kubernetes.io/name: ingress-front
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "plugins": [
+        {
+          "type": "macvlan",
+          "mode": "bridge",
+          "ipam": {
+            "type": "static",
+            "addresses": [
+              { "address": "192.168.2.70/24", "gateway": "192.168.2.1" }
+            ]
+          }
+        },
+        {
+          "type": "tuning",
+          "capabilities": { "mac": true },
+          "sysctl": {
+            "net.ipv4.conf.net1.arp_ignore": "1",
+            "net.ipv4.conf.net1.arp_announce": "2"
+          }
+        }
+      ]
+    }

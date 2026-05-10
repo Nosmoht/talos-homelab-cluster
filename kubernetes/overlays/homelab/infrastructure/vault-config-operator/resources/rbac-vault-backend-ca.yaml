@@ -1,0 +1,56 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vault-backend-ca
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - vault-backend-ca
+    verbs:
+      - get
+      - update
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-backend-ca
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vault-backend-ca
+subjects:
+  - kind: ServiceAccount
+    name: vault
+    namespace: vault

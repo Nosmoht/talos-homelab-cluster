@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: root-bootstrap
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  description: Bootstrap scope for root app-of-apps
+  sourceRepos:
+    - https://github.com/Nosmoht/Talos-Homelab.git
+    - https://github.com/Nosmoht/talos-platform-base.git
+    - https://github.com/Nosmoht/talos-homelab-cluster.git
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    # kyverno namespace destination needed because root's kustomize tree pulls
+    # in overlay-specific ConfigMaps targeting kyverno (e.g. PNI cluster-config
+    # with external_hostname_pattern). Architectural debt: these CMs should be
+    # owned by the consuming Application (PNI), not by root. Tracked separately.
+    - namespace: kyverno
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: argoproj.io
+      kind: AppProject
+    - group: argoproj.io
+      kind: Application
+    # ConfigMap permitted for overlay-specific cluster-config CMs (see
+    # destinations comment above for context).
+    - group: ""
+      kind: ConfigMap

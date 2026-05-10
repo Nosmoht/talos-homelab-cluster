@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: drbd-reactor
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+    app: drbd-reactor
+spec:
+  ports:
+    - name: metrics
+      port: 9942
+      targetPort: 9942
+  selector:
+    app.kubernetes.io/component: linstor-satellite
+    app.kubernetes.io/instance: homelab
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: drbd-reactor
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+    monitoring: default
+spec:
+  namespaceSelector:
+    matchNames:
+      - piraeus-datastore
+  selector:
+    matchLabels:
+      app: drbd-reactor
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: linstor-controller
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+    monitoring: default
+spec:
+  namespaceSelector:
+    matchNames:
+      - piraeus-datastore
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: linstor-controller
+      app.kubernetes.io/instance: homelab
+      app.kubernetes.io/name: piraeus-datastore
+  endpoints:
+    - port: api
+      path: /metrics
+      interval: 30s

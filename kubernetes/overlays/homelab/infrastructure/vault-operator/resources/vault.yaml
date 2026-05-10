@@ -1,0 +1,129 @@
+apiVersion: vault.banzaicloud.com/v1alpha1
+kind: Vault
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: secrets
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  image: hashicorp/vault:1.21.2
+  bankVaultsImage: ghcr.io/bank-vaults/bank-vaults:v1.32.1
+  size: 3
+  serviceType: ClusterIP
+  serviceAccount: vault
+  securityContext:
+    fsGroup: 1000
+  unsealConfig:
+    kubernetes:
+      secretNamespace: vault
+    options:
+      preFlightChecks: true
+      storeRootToken: true
+  config:
+    api_addr: https://vault.vault:8200
+    cluster_addr: https://${.Env.POD_NAME}:8201
+    disable_mlock: true
+    ui: true
+    listener:
+      tcp:
+        address: 0.0.0.0:8200
+        tls_cert_file: /vault/tls/server.crt
+        tls_key_file: /vault/tls/server.key
+    storage:
+      raft:
+        path: /vault/file
+  resources:
+    vault:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+  nodeAffinity: {}
+  credentialsConfig:
+    env: ""
+    path: ""
+    secretName: ""
+  externalConfig:
+    audit:
+      - type: file
+        path: file
+        options:
+          file_path: /vault/logs/vault-audit.log
+    auth: []
+    policies:
+      - name: atlas-llm-mediator
+        rules: |
+          path "transit/encrypt/*" {
+            capabilities = ["create", "update"]
+          }
+          path "transit/decrypt/*" {
+            capabilities = ["create", "update"]
+          }
+          path "transit/keys/*" {
+            capabilities = ["read"]
+          }
+          path "secret/data/atlas-llm-mediator/*" {
+            capabilities = ["read", "list"]
+          }
+      - name: atlas-event-writer
+        rules: |
+          path "transit/encrypt/audit-*" {
+            capabilities = ["create", "update"]
+          }
+          path "transit/keys/audit-*" {
+            capabilities = ["read"]
+          }
+          path "secret/data/atlas-event-writer/*" {
+            capabilities = ["read", "list"]
+          }
+      - name: atlas-dek-destroyer
+        rules: |
+          path "transit/keys/*" {
+            capabilities = ["read", "delete", "update"]
+          }
+          path "transit/keys/+/config" {
+            capabilities = ["create", "update"]
+          }
+    secrets:
+      - type: transit
+        path: transit
+        description: ATLAS encryption backbone for prompts, events, and DEKs
+      - type: kv
+        path: secret
+        options:
+          version: 2
+        description: ATLAS key-value store for service secrets
+  vaultLabels:
+    platform.io/capability-consumer.gateway-backend: "true"
+    platform.io/capability-consumer.monitoring-scrape: "true"
+    platform.io/capability-consumer.controlplane-egress: "true"
+    platform.io/capability-provider.monitoring-scrape: "true"
+  vaultContainerSpec:
+    name: vault
+    resources: {}
+  vaultPodSpec:
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: vault
+  volumeClaimTemplates:
+    - metadata:
+        name: vault-file
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+  volumeMounts:
+    - name: vault-file
+      mountPath: /vault/file

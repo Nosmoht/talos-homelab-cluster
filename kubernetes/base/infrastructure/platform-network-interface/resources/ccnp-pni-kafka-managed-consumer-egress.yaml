@@ -1,0 +1,35 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: pni-kafka-managed-consumer-egress
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io.cilium.k8s.namespace.labels.platform.io/consume.kafka-managed: "true"
+      k8s:io.cilium.k8s.namespace.labels.platform.io/network-interface-version: "v1"
+      platform.io/capability-consumer.kafka-managed: "true"
+  egress:
+    # Kafka brokers (managed by Strimzi)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: kafka
+            strimzi.io/component-type: kafka
+      toPorts:
+        - ports:
+            - port: "9092"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

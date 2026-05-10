@@ -1,0 +1,115 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+  ingress:
+    # Health probes from kubelet
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "3100"
+              protocol: TCP
+    # Alloy log ingestion
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: alloy
+      toPorts:
+        - ports:
+            - port: "3100"
+              protocol: TCP
+    # Grafana queries
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: grafana
+      toPorts:
+        - ports:
+            - port: "3100"
+              protocol: TCP
+    # Prometheus metrics scraping
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "3100"
+              protocol: TCP
+    # Loki internal component traffic (gateway/read/write/backend/canary)
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: loki
+      toPorts:
+        - ports:
+            - port: "3100"
+              protocol: TCP
+            - port: "9095"
+              protocol: TCP
+            - port: "7946"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+            - port: "11211"
+              protocol: TCP
+  egress:
+    # Alertmanager (ruler alerts)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: alertmanager
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+    # Loki internal component traffic (gateway/read/write/backend/canary)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: loki
+      toPorts:
+        - ports:
+            - port: "3100"
+              protocol: TCP
+            - port: "9095"
+              protocol: TCP
+            - port: "7946"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+            - port: "11211"
+              protocol: TCP
+    # Kubernetes API for loki-sc-rules sidecar
+    - toCIDRSet:
+        - cidr: 10.96.0.1/32
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "6443"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

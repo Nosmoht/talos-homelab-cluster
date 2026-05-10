@@ -1,0 +1,63 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pni-contract-audit
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: policy-governance
+    app.kubernetes.io/managed-by: argocd
+spec:
+  validationFailureAction: Enforce
+  background: true
+  admission: true
+  emitWarning: false
+  rules:
+    - name: require-interface-version
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-public
+                - kube-node-lease
+                - kube-system
+                - default
+      validate:
+        allowExistingViolations: true
+        message: "Namespaces must set platform.io/network-interface-version=v1 for PNI"
+        pattern:
+          metadata:
+            labels:
+              platform.io/network-interface-version: "v1"
+    - name: require-network-profile
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-public
+                - kube-node-lease
+                - kube-system
+                - default
+      validate:
+        allowExistingViolations: true
+        message: "Namespaces must set platform.io/network-profile for PNI"
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.metadata.labels.\"platform.io/network-profile\" || '' }}"
+                operator: AnyNotIn
+                value:
+                  - restricted
+                  - managed
+                  - privileged

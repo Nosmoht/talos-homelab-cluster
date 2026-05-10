@@ -1,0 +1,129 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: monitoring-custom-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: prometheus-rules
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  groups:
+    - name: prometheus
+      rules:
+        - alert: PrometheusDown
+          expr: up{job="prometheus"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Prometheus is down
+            description: Prometheus has been unreachable for 5 minutes.
+    - name: kube-apiserver
+      rules:
+        - alert: KubeAPIDown
+          expr: up{job="apiserver"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kubernetes API server is down
+            description: The Kubernetes API server has been unreachable for 5 minutes.
+    - name: kubelet
+      rules:
+        - alert: KubeletDown
+          expr: up{job="kubelet"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Kubelet is down
+            description: Kubelet has been unreachable for 10 minutes.
+    - name: monitoring-stack
+      rules:
+        - alert: NodeExporterDown
+          expr: up{job="node-exporter"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Node exporter is down
+            description: Node exporter has been unreachable for 10 minutes.
+        - alert: KubeStateMetricsDown
+          expr: up{job="kube-state-metrics"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: kube-state-metrics is down
+            description: kube-state-metrics has been unreachable for 10 minutes.
+    - name: nodes
+      rules:
+        - alert: NodeDiskRunningFull
+          expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.10
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Node disk is almost full
+            description: Filesystem has less than 10% space remaining.
+        - alert: NodeDiskCriticallyFull
+          expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.05
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Node disk is critically full
+            description: Filesystem has less than 5% space remaining.
+        - alert: NodeMemoryPressure
+          expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Node memory is low
+            description: Node has less than 10% memory available.
+        - alert: NodeCPUSustainedHigh
+          expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Node CPU usage is high
+            description: Node CPU usage has been above 90% for 15 minutes.
+    - name: kubernetes
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[10m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod is crash looping
+            description: Pod has restarted more than 3 times in 10 minutes.
+        - alert: PodNotReady
+          expr: min_over_time(kube_pod_status_ready{condition="true"}[10m]) == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod is not ready
+            description: Pod has been unready for more than 10 minutes.
+        - alert: DeploymentReplicasMismatch
+          expr: (kube_deployment_spec_replicas - kube_deployment_status_replicas_available) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Deployment replicas mismatch
+            description: Deployment has unavailable replicas for more than 10 minutes.
+        - alert: PVCUsageHigh
+          expr: (kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes) < 0.10
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: PVC usage is high
+            description: PVC has less than 10% free space.

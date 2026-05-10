@@ -1,0 +1,69 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: linstor-csi-controller
+  namespace: piraeus-datastore
+  labels:
+    app.kubernetes.io/name: piraeus-datastore
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/component: linstor-csi-controller
+  ingress:
+    # Kubelet health probes (linstor-csi:9808, attacher:9809, provisioner:9810,
+    # snapshotter:9811, resizer:9812, health-monitor:9813)
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "9808"
+              protocol: TCP
+            - port: "9809"
+              protocol: TCP
+            - port: "9810"
+              protocol: TCP
+            - port: "9811"
+              protocol: TCP
+            - port: "9812"
+              protocol: TCP
+            - port: "9813"
+              protocol: TCP
+  egress:
+    # LINSTOR controller API (volume operations)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/component: linstor-controller
+      toPorts:
+        - ports:
+            - port: "3371"
+              protocol: TCP
+            - port: "3370"
+              protocol: TCP
+    # Kubernetes API (CSI sidecar operations: PV, VolumeAttachment, etc.)
+    - toCIDRSet:
+        - cidr: 10.96.0.1/32
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "6443"
+              protocol: TCP
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

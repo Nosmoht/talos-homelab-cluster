@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 81.6.1
+      helm:
+        releaseName: monitoring
+        valueFiles:
+          - $base/kubernetes/base/infrastructure/kube-prometheus-stack/values.yaml
+          - $cluster/kubernetes/overlays/homelab/infrastructure/kube-prometheus-stack/values.yaml
+    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+      targetRevision: main
+      path: kubernetes/overlays/homelab/infrastructure/kube-prometheus-stack/resources
+      ref: cluster
+      helm:
+        valueFiles: []
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      helm:
+        valueFiles: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

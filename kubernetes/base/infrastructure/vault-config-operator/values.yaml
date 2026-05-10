@@ -1,0 +1,30 @@
+replicaCount: 1
+
+enableMonitoring: true
+enableCertManager: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 250Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  - name: VAULT_ADDR
+    value: https://vault.vault.svc.cluster.local:8200
+  - name: VAULT_CACERT
+    value: /vault/tls/ca.crt
+  - name: CACHE_VAULT_TOKEN
+    value: "true"
+
+volumes:
+  - name: vault-tls
+    secret:
+      secretName: vault-tls
+
+volumeMounts:
+  - name: vault-tls
+    mountPath: /vault/tls
+    readOnly: true

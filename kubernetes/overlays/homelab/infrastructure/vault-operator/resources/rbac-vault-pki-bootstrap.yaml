@@ -1,0 +1,60 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vault-pki-bootstrap-target
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: vault-pki-bootstrap
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-pki-bootstrap-target
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: vault-pki-bootstrap
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vault-pki-bootstrap-target
+subjects:
+  - kind: ServiceAccount
+    name: vault
+    namespace: vault
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-pki-bootstrap-tokenreview
+  labels:
+    app.kubernetes.io/name: vault-pki-bootstrap
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: vault
+    namespace: vault

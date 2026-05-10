@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  jobLabel: app.kubernetes.io/name
+  namespaceSelector:
+    matchNames:
+      - vault
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+      vault_cr: vault
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

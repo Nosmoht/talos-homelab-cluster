@@ -1,0 +1,30 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: cert-manager-pki
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: cert-manager-pki
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: vault-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  authentication:
+    path: kubernetes
+    role: vco-pki-admin
+    serviceAccount:
+      name: controller-manager
+  policy: |
+    path "pki_int/sign/cert-manager-internal" {
+      capabilities = ["update"]
+    }
+    path "pki_int/issue/cert-manager-internal" {
+      capabilities = ["update"]
+    }
+    path "pki_int/cert/ca" {
+      capabilities = ["read"]
+    }
+  type: acl

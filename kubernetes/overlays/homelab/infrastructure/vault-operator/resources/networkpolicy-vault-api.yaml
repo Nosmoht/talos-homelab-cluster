@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-api-from-cert-manager-bootstrap-and-external-secrets
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  podSelector:
+    matchLabels:
+      vault_cr: vault
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cert-manager
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: cert-manager
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: vault-pki-bootstrap
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: external-secrets
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: external-secrets
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: cilium-envoy
+        - ipBlock:
+            cidr: 192.168.2.0/24
+      ports:
+        - port: 8200
+          protocol: TCP

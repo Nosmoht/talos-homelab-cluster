@@ -1,0 +1,28 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: KubernetesAuthEngineRole
+metadata:
+  name: cert-manager-pki
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: cert-manager-pki
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: vault-auth-role
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  authentication:
+    path: kubernetes
+    role: vco-pki-admin
+    serviceAccount:
+      name: controller-manager
+  path: kubernetes
+  policies:
+    - cert-manager-pki
+  targetServiceAccounts:
+    - cert-manager
+  targetNamespaces:
+    targetNamespaces:
+      - cert-manager
+  tokenTTL: 3600

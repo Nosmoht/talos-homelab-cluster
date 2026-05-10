@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: omada-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/name: omada-controller
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  sources:
+    # Chart lives in the upstream git repo under helm/omada-controller-helm/.
+    # Using git source (not OCI) because Docker Hub anonymous rate limits
+    # block ArgoCD's /v2/.../tags/list call (403) even when helm pull of a
+    # specific version succeeds. Bump targetRevision when tracking a new
+    # upstream release.
+    - repoURL: https://github.com/mbentley/docker-omada-controller.git
+      targetRevision: v6.2.0.17
+      path: helm/omada-controller-helm
+      helm:
+        releaseName: omada-controller
+        valueFiles:
+          - $cluster/kubernetes/overlays/homelab/infrastructure/omada-controller/values.yaml
+    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+      targetRevision: main
+      path: kubernetes/overlays/homelab/infrastructure/omada-controller/resources
+      ref: cluster
+      helm:
+        valueFiles: []
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      helm:
+        valueFiles: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: omada-controller
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

@@ -1,0 +1,60 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pni-capability-validation-audit
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: policy-governance
+    app.kubernetes.io/managed-by: argocd
+spec:
+  validationFailureAction: Enforce
+  background: true
+  admission: true
+  emitWarning: true
+  rules:
+    - name: validate-consume-capability-labels
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+      validate:
+        allowExistingViolations: true
+        message: >-
+          Unknown PNI capability label on namespace {{ request.object.metadata.name }}.
+          Valid capabilities: monitoring-scrape, logging-ship, vault-secrets, cnpg-postgres,
+          redis-managed, kafka-managed, rabbitmq-managed, s3-object, storage-csi, tls-issuance,
+          gateway-backend, external-gateway-routes, gpu-runtime, hpa-metrics, internet-egress,
+          controlplane-egress, admission-webhook-provider, monitoring-scrape-provider.
+        foreach:
+          - list: "request.object.metadata.labels | items(@, 'key', 'value')"
+            preconditions:
+              all:
+                - key: "{{ element.key }}"
+                  operator: Equals
+                  value: "platform.io/consume.*"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.key }}"
+                    operator: AnyNotIn
+                    value:
+                      - platform.io/consume.monitoring-scrape
+                      - platform.io/consume.logging-ship
+                      - platform.io/consume.vault-secrets
+                      - platform.io/consume.cnpg-postgres
+                      - platform.io/consume.redis-managed
+                      - platform.io/consume.kafka-managed
+                      - platform.io/consume.rabbitmq-managed
+                      - platform.io/consume.s3-object
+                      - platform.io/consume.storage-csi
+                      - platform.io/consume.tls-issuance
+                      - platform.io/consume.gateway-backend
+                      - platform.io/consume.external-gateway-routes
+                      - platform.io/consume.gpu-runtime
+                      - platform.io/consume.hpa-metrics
+                      - platform.io/consume.internet-egress
+                      - platform.io/consume.controlplane-egress
+                      - platform.io/consume.admission-webhook-provider
+                      - platform.io/consume.monitoring-scrape-provider

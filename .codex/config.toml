@@ -1,0 +1,33 @@
+# Repo-local Codex CLI configuration — auto-loaded from CWD by Codex CLI.
+# Claude Code uses .mcp.json in the repo root (different format, same servers).
+#
+# SAFETY INVARIANT: approval_policy = "on-request" is HARD-PINNED.
+# Do NOT change to "never" or "auto" without repo-maintainer approval.
+# This prevents destructive Talos/kubectl operations running without confirmation.
+approval_policy = "on-request"
+
+# MCP servers — all three use bare PATH-resolved command names.
+# Run `make mcp-install` once after cloning to install binaries and the wrapper symlink.
+# See docs/mcp-setup.md for full setup instructions and troubleshooting.
+#
+# Portability: bare commands work on macOS (Homebrew) and Linux (go install / npm).
+# Codex does not expand ${VAR} in command/args — PATH resolution is the only portable option.
+
+[mcp_servers.github]
+# mcp-github-wrapper: PATH-installed symlink → scripts/mcp-github-wrapper.sh
+# Fetches GITHUB_PERSONAL_ACCESS_TOKEN from `gh auth token` at spawn time.
+# Token is scoped to the github-mcp-server child process only — not exported to shell env.
+command = "mcp-github-wrapper"
+args = []
+startup_timeout_sec = 30
+
+[mcp_servers.kubernetes-mcp-server]
+command = "kubernetes-mcp-server"
+args = ["--read-only", "--disable-multi-cluster"]
+startup_timeout_sec = 30
+
+[mcp_servers.talos]
+command = "talos-mcp"
+args = []
+env = { TALOS_CONTEXT = "homelab", TALOS_MCP_ALLOWED_PATHS = "/proc,/sys,/var/log,/run,/usr/local/etc,/etc/os-release" }
+startup_timeout_sec = 30

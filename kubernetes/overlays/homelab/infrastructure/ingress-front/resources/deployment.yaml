@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress-front
+  namespace: default
+  labels:
+    app.kubernetes.io/name: ingress-front
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/version: "1.27"
+    app.kubernetes.io/component: l4-proxy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-front
+      app.kubernetes.io/instance: homelab
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ingress-front
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/version: "1.27"
+        app.kubernetes.io/component: l4-proxy
+        app.kubernetes.io/part-of: homelab
+      annotations:
+        # Public VIP net2 MAC: locally-administered (02:42 prefix, U/L bit set).
+        # Switched from IANA VRRP OUI 00:00:5E:00:01:63 to isolate Fritzbox
+        # port-forward delivery failure hypothesis (Test B from Phase 0 plan).
+        k8s.v1.cni.cncf.io/networks: '[{"name": "homelab-gateway-macvlan", "mac": "02:42:c0:a8:02:46"}, {"name": "homelab-gateway-macvlan-public", "mac": "02:42:c0:a8:02:63"}]'
+        # Bumped to force Multus NAD re-read on pod roll (NADs do not hot-reload).
+        kubectl.kubernetes.io/restartedAt: "2026-04-15T14:00:00Z"
+    spec:
+      tolerations:
+        # Allow scheduling on nodes with the DRBD lost-quorum taint so
+        # ingress-front survives storage-degraded events. The pod has no PVC
+        # and does not depend on DRBD.
+        - key: drbd.linbit.com/lost-quorum
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101        # nginx UID in nginx:1.27-alpine
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # Validate nginx config before the main container starts. Pod refuses
+        # to start on syntax errors instead of crash-looping with a broken
+        # config and taking LAN ingress down.
+        - name: nginx-validate
+          image: nginx:1.27-alpine
+          command: ["nginx", "-t", "-c", "/etc/nginx/nginx.conf"]
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 32Mi }
+        # Force a DHCPv4 DISCOVER/OFFER/REQUEST/ACK exchange on each macvlan
+        # interface using its pinned MAC. FRITZ!OS 8.20+ refuses to populate
+        # Hosts1.GetSpecificHostEntryByIP with NewActive=True (and refuses
+        # NAT delivery for port forwards) for hosts that only speak ARP from
+        # a static-IPAM CNI address. A real DHCP exchange registers the host
+        # as a first-class DHCP client; Fritzbox matches the MAC against its
+        # DHCP reservation and assigns the expected IP.
+        # udhcpc runs with -s /bin/true (no iface config script, static IPAM
+        # already owns the address) so only NET_RAW is required. PSA baseline
+        # forbids explicit capabilities.add:[NET_RAW] but grants NET_RAW via
+        # the runtime default set, so we omit capabilities.add entirely.
+        # Trailing `|| echo` keeps nginx startup unblocked if DHCP transiently
+        # fails (the static IPAM address is still bound on the interface).
+        - name: net1-dhcp-register
+          image: busybox:1.36
+          command: ["sh", "-c", "udhcpc -s /bin/true -n -q -f -i net1 || echo 'dhcp probe failed on net1, continuing'"]
+          # NO capabilities.drop/add: per postmortem Lesson #4
+          # (docs/2026-04-15-fritzbox-macvlan-port-forward-exhaustion.md L238),
+          # PSA baseline forbids explicit `capabilities.add: [NET_RAW]`, but
+          # udhcpc needs NET_RAW for raw DHCP packets. Runtime default cap set
+          # includes NET_RAW, so omitting drop/add keeps admission green AND
+          # gives udhcpc what it needs.
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          resources:
+            requests: { cpu: 5m, memory: 8Mi }
+            limits: { cpu: 50m, memory: 16Mi }
+        - name: net2-dhcp-register
+          image: busybox:1.36
+          command: ["sh", "-c", "udhcpc -s /bin/true -n -q -f -i net2 || echo 'dhcp probe failed on net2, continuing'"]
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          resources:
+            requests: { cpu: 5m, memory: 8Mi }
+            limits: { cpu: 50m, memory: 16Mi }
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              # NET_BIND_SERVICE lets nginx bind <1024 ports on macvlan VIPs
+              # without the runtime default net.ipv4.ip_unprivileged_port_start
+              # setting.
+              add: [NET_BIND_SERVICE]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          # No containerPorts / readinessProbe: nginx binds only on the macvlan
+          # VIPs (net1/net2), not on the pod-network eth0 IP. A tcpSocket probe
+          # would target eth0 and fail. The init container `nginx-validate`
+          # already gates start on config syntax; verify VIP reachability from
+          # outside the pod (LAN curl) post-deploy.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 64Mi
+      volumes:
+        - name: config
+          configMap:
+            name: ingress-front-config
+        # Writable emptyDirs required because readOnlyRootFilesystem: true
+        # is set on both nginx containers; nginx writes proxy/client/fastcgi
+        # temp files to /var/cache/nginx and its pid file to /var/run.
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}

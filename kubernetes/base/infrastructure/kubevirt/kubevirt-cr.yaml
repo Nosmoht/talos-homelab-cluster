@@ -1,0 +1,21 @@
+# KubeVirt CR — triggers the operator to deploy virt-api, virt-controller, virt-handler.
+# Vendored operator: v1.5.0
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+  labels:
+    app.kubernetes.io/name: kubevirt
+    app.kubernetes.io/version: v1.5.0
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/managed-by: argocd
+spec:
+  configuration:
+    developerConfiguration:
+      useEmulation: false
+    network:
+      permitBridgeInterfaceOnPodNetwork: false
+  workloadUpdateStrategy:
+    workloadUpdateMethods:
+      - Evict

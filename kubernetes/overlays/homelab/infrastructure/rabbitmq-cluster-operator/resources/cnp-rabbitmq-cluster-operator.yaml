@@ -1,0 +1,32 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: rabbitmq-cluster-operator
+  namespace: rabbitmq-system
+  labels:
+    app.kubernetes.io/name: rabbitmq-cluster-operator
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq-cluster-operator
+      app.kubernetes.io/component: rabbitmq-operator
+  ingress:
+    # kubelet liveness/readiness probes on health port 8081
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8081"
+              protocol: TCP
+    # Prometheus metrics scraping on 8080
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

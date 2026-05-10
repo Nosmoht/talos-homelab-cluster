@@ -1,0 +1,11 @@
+podLabels:
+  platform.io/capability-consumer.monitoring-scrape: "true"
+  platform.io/capability-consumer.controlplane-egress: "true"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

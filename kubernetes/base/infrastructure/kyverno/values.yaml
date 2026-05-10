@@ -1,0 +1,29 @@
+admissionController:
+  rbac:
+    clusterRole:
+      extraResources:
+        - apiGroups:
+            - ""
+          resources:
+            - secrets
+          verbs:
+            - get
+            - list
+            - watch
+
+backgroundController:
+  rbac:
+    clusterRole:
+      extraResources:
+        - apiGroups:
+            - ""
+          resources:
+            - secrets
+          verbs:
+            - get
+            - list
+            - watch
+            - create
+            - update
+            - patch
+            - delete

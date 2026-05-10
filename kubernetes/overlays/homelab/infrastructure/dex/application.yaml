@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dex
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app.kubernetes.io/name: dex
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://charts.dexidp.io
+      chart: dex
+      targetRevision: 0.24.0
+      helm:
+        valueFiles:
+          - $base/kubernetes/base/infrastructure/dex/values.yaml
+          - $cluster/kubernetes/overlays/homelab/infrastructure/dex/values.yaml
+    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+      targetRevision: main
+      path: kubernetes/overlays/homelab/infrastructure/dex/resources
+      ref: cluster
+      helm:
+        valueFiles: []
+    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
+      targetRevision: v0.1.0
+      ref: base
+      helm:
+        valueFiles: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dex
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

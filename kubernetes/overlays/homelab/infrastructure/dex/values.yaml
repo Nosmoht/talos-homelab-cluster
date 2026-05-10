@@ -1,0 +1,129 @@
+rbac:
+  create: false
+  createClusterScoped: false
+
+serviceAccount:
+  create: false
+  name: dex
+
+service:
+  type: ClusterIP
+
+podLabels:
+  platform.io/capability-consumer.cnpg-postgres: "true"
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: dex
+        app.kubernetes.io/instance: dex
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: dex
+              app.kubernetes.io/instance: dex
+          topologyKey: kubernetes.io/hostname
+
+config:
+  enablePasswordDB: true
+  storage:
+    type: postgres
+    config:
+      host: $DEX_DB_HOST
+      port: 5432
+      database: $DEX_DB_NAME
+      user: $DEX_DB_USER
+      password: $DEX_DB_PASSWORD
+      ssl:
+        mode: require
+  issuer: https://dex.homelab.local
+  staticClients:
+    - id: argocd
+      name: Argo CD
+      redirectURIs:
+        - https://argocd.homelab.local/auth/callback
+        - https://argocd.lan.homelab.ntbc.io/auth/callback
+      secretEnv: ARGOCD_OIDC_CLIENT_SECRET
+    - id: argo-workflows
+      name: Argo Workflows
+      redirectURIs:
+        - https://argoworkflows.homelab.local/oauth2/callback
+      secretEnv: ARGO_WORKFLOWS_OIDC_CLIENT_SECRET
+    - id: grafana
+      name: Grafana
+      redirectURIs:
+        - https://grafana.homelab.local/login/generic_oauth
+      secretEnv: GRAFANA_OIDC_CLIENT_SECRET
+    - id: prometheus
+      name: Prometheus
+      redirectURIs:
+        - https://prometheus.homelab.local/oauth2/callback
+        - https://prometheus.lan.homelab.ntbc.io/oauth2/callback
+      secretEnv: PROMETHEUS_OIDC_CLIENT_SECRET
+    - id: alertmanager
+      name: Alertmanager
+      redirectURIs:
+        - https://alertmanager.homelab.local/oauth2/callback
+        - https://alertmanager.lan.homelab.ntbc.io/oauth2/callback
+      secretEnv: ALERTMANAGER_OIDC_CLIENT_SECRET
+  staticPasswords:
+    - email: nosmoht
+      # bcrypt hash generated for the local Dex password auth user.
+      hash: $2y$12$oB5CvF4Wl.8NXA3QvhK6nuFVQiHwiLJGF30DgTL4F1RBJTQGREHbq
+      userID: 4f8c860e-06f9-44d6-bf8a-4208d7c9ff90
+      username: nosmoht
+
+envVars:
+  - name: ARGOCD_OIDC_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: dex-oidc-secrets
+        key: argocd-oidc-client-secret
+  - name: ARGO_WORKFLOWS_OIDC_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: dex-oidc-secrets
+        key: argo-workflows-oidc-client-secret
+  - name: GRAFANA_OIDC_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: dex-oidc-secrets
+        key: grafana-oidc-client-secret
+  - name: PROMETHEUS_OIDC_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: dex-oidc-secrets
+        key: prometheus-oidc-client-secret
+  - name: ALERTMANAGER_OIDC_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: dex-oidc-secrets
+        key: alertmanager-oidc-client-secret
+  - name: DEX_DB_HOST
+    valueFrom:
+      secretKeyRef:
+        name: dex-postgresql-app
+        key: host
+  - name: DEX_DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: dex-postgresql-app
+        key: username
+  - name: DEX_DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: dex-postgresql-app
+        key: password
+  - name: DEX_DB_NAME
+    valueFrom:
+      secretKeyRef:
+        name: dex-postgresql-app
+        key: dbname

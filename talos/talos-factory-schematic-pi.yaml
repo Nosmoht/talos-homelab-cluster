@@ -1,0 +1,15 @@
+overlay:
+  # Required for Raspberry Pi firmware boot assets (U-Boot/config.txt/EFI bits).
+  name: rpi_generic
+  image: siderolabs/sbc-raspberrypi
+
+customization:
+  # Pi image profile is intentionally separate from x86 schematics.
+  extraKernelArgs:
+    # Keep Pi profile independent from x86-specific tuning.
+    - cpufreq.default_governor=performance
+    - mitigations=auto
+    - init_on_alloc=1
+    - init_on_free=1
+    - page_alloc.shuffle=1
+    - randomize_kstack_offset=on

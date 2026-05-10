@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1alpha3
+kind: BackendTLSPolicy
+metadata:
+  name: vault-ui
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: backend-tls-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: vault
+      sectionName: api-port
+  validation:
+    hostname: vault.vault.svc.cluster.local
+    caCertificateRefs:
+      - group: ""
+        kind: ConfigMap
+        name: vault-backend-ca

@@ -1,0 +1,66 @@
+# Cluster Identity — Single Source of Truth
+#
+# This file is the canonical cluster identity SOT for this repo.
+# It is tool-agnostic: read by make (talos/Makefile), kubectl (argocd bootstrap),
+# and Claude Code skills/agents — no AI tooling required to use it.
+#
+# Copy this file to cluster.yaml (gitignored) and fill in your cluster values.
+# One cluster.yaml per working tree. For multi-cluster: pass ENV=../other/cluster.yaml
+# to talos/Makefile targets.
+#
+# NOTE: secrets.yaml (PKI material) is scoped to a single cluster and is NOT
+# interpolated from cluster.yaml. Each cluster has its own secrets.yaml.
+
+cluster:
+  name: my-cluster
+  overlay: my-cluster                      # kustomize overlay name under kubernetes/overlays/
+  api_vip: 10.0.0.100                     # Kubernetes API virtual IP
+  gateway_vip: 10.0.0.200                 # Gateway/LoadBalancer virtual IP
+  network: 10.0.0.0/24                    # cluster network CIDR
+  gateway: 10.0.0.1                       # default gateway / DNS
+  ntp_server: 10.0.0.1                    # NTP server IP or hostname (required, no public default)
+  target_revision: main                   # git branch/tag for ArgoCD root application (optional, default: main)
+
+kubeconfig: /tmp/my-cluster-kubeconfig     # path to kubeconfig file
+
+nodes:
+  # Control plane nodes (minimum 3 for etcd quorum)
+  control_plane:
+    - name: cp-01
+      ip: 10.0.0.11
+      nic: eth0                            # primary NIC device name
+    - name: cp-02
+      ip: 10.0.0.12
+      nic: eth0
+    - name: cp-03
+      ip: 10.0.0.13
+      nic: eth0
+
+  # Standard worker nodes
+  workers:
+    - name: worker-01
+      ip: 10.0.0.21
+      nic: eth0
+
+  # GPU worker nodes (optional — leave empty if none)
+  gpu_workers: []
+  # gpu_workers:
+  #   - name: gpu-worker-01
+  #     ip: 10.0.0.31
+  #     nic: enp0s20f0u2
+
+  # ARM/Pi nodes (optional — leave empty if none)
+  pi_nodes: []
+  # pi_nodes:
+  #   - name: pi-01
+  #     ip: 10.0.0.41
+
+repo:
+  url: https://github.com/your-org/your-repo.git
+
+# Hardware hints — used by skills that need hardware context without live queries
+hardware:
+  standard_nodes: "Generic x86_64"         # short description of standard node hardware
+  gpu_node: ""                             # short description of GPU node hardware
+  standard_nic_driver: ""                  # e.g. "e1000e", "igc"
+  gpu_nic_driver: ""                       # e.g. "r8152" for USB Realtek

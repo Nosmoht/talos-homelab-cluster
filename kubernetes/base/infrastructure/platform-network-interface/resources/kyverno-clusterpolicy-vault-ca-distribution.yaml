@@ -1,0 +1,47 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pni-vault-ca-distribution
+  labels:
+    app.kubernetes.io/name: platform-network-interface
+    app.kubernetes.io/component: policy-governance
+    app.kubernetes.io/managed-by: argocd
+spec:
+  validationFailureAction: Audit
+  background: true
+  admission: true
+  emitWarning: false
+  rules:
+    - name: distribute-vault-ca-to-vault-secrets-consumers
+      skipBackgroundRequests: false
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  platform.io/network-interface-version: "v1"
+                  platform.io/consume.vault-secrets: "true"
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - argocd
+                - cert-manager
+                - vault
+                - external-secrets
+                - monitoring
+      generate:
+        synchronize: true
+        generateExisting: true
+        apiVersion: v1
+        kind: Secret
+        name: vault-ca
+        namespace: "{{request.object.metadata.name}}"
+        clone:
+          namespace: cert-manager
+          name: vault-ca

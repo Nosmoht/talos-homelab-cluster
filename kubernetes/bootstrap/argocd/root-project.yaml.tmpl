@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: root-bootstrap
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/instance: ${CLUSTER_NAME}
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: ${CLUSTER_NAME}
+    app.kubernetes.io/managed-by: bootstrap
+spec:
+  description: Bootstrap scope for root app-of-apps
+  sourceRepos:
+    - ${REPO_URL}
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: argoproj.io
+      kind: AppProject
+    - group: argoproj.io
+      kind: Application

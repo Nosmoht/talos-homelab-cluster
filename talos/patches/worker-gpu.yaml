@@ -1,0 +1,23 @@
+machine:
+  kubelet:
+    extraConfig:
+      registerWithTaints:
+        - key: nvidia.com/gpu
+          value: "present"
+          effect: NoSchedule
+  sysctls:
+    # --- Performance: USB NIC NAPI budget (RTL8153 RX drop mitigation) ---
+    # USB NICs have ~3-5x higher per-packet overhead than PCIe NICs.
+    # Default budget (300 packets / 2ms) exhausts before draining the RX queue,
+    # causing drops. Only node-gpu-01 uses a USB NIC (r8152).
+    net.core.netdev_budget: "600"
+    net.core.netdev_budget_usecs: "8000"
+  kernel:
+    modules:
+      - name: nvidia
+        parameters:
+          - NVreg_UsePageAttributeTable=1
+          - NVreg_DynamicPowerManagement=0
+      - name: nvidia_uvm
+      - name: nvidia_modeset
+      - name: nvidia_drm

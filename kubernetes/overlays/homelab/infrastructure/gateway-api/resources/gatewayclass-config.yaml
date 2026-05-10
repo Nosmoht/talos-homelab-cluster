@@ -1,0 +1,18 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumGatewayClassConfig
+metadata:
+  name: homelab-gateway-config
+  namespace: default
+  labels:
+    app.kubernetes.io/name: cilium
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: gateway-class-config
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  description: Gateway service profile with Cilium L2 announcements.
+  service:
+    # L2 announcements with externalTrafficPolicy=Local can blackhole traffic on
+    # announcer nodes without a local gateway endpoint.
+    externalTrafficPolicy: Cluster
+    allocateLoadBalancerNodePorts: false

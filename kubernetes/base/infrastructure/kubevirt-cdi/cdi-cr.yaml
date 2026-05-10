@@ -1,0 +1,15 @@
+# CDI CR — triggers the CDI operator to deploy cdi-apiserver, cdi-controller, cdi-uploadproxy.
+# Vendored operator: v1.62.0
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: CDI
+metadata:
+  name: cdi
+  namespace: cdi
+  labels:
+    app.kubernetes.io/name: cdi
+    app.kubernetes.io/version: v1.62.0
+    app.kubernetes.io/component: data-importer
+    app.kubernetes.io/managed-by: argocd
+spec:
+  config:
+    uploadProxyURLOverride: ""
