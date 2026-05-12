@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - net-attach-def.yaml
-  - net-attach-def-public.yaml
   - deployment.yaml
   - cnp-ingress-front.yaml
 

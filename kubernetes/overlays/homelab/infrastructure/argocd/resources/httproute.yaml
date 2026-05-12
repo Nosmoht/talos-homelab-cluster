@@ -15,14 +15,8 @@ spec:
       kind: Gateway
       name: homelab-gateway
       namespace: default
-      sectionName: https
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: homelab-gateway
-      namespace: default
       sectionName: internal-trusted-https
   hostnames:
-    - argocd.homelab.local
     - argocd.lan.homelab.ntbc.io
   rules:
     - matches:
