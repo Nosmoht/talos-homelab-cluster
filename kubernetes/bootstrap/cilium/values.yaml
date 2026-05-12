@@ -18,9 +18,16 @@ ipam:
   mode: "kubernetes"
 
 # --- Gateway API ---
+# enableAlpn: advertise h2 in the TLS ALPN list on HTTPS listeners. Required
+# for gRPC clients (e.g. argocd CLI) to negotiate HTTP/2 over the terminated
+# TLS connection — without this, clients fall back to HTTP/1.1 and gRPC
+# trailers are stripped upstream. Required together with Service-level
+# appProtocol: kubernetes.io/h2c on backends that speak h2c.
+# https://github.com/cilium/cilium/blob/v1.19.2/Documentation/network/servicemesh/gateway-api/grpc.rst
 gatewayAPI:
   enabled: true
   enableAppProtocol: true
+  enableAlpn: true
   hostNetwork:
     enabled: true
     nodes:
