@@ -117,6 +117,19 @@ backend:
       cpu: 2
       memory: 3Gi
 
+chunksCache:
+  # Chart default 8192 MB → +20% sidecar overhead = 9830 MiB pod request.
+  # Observed Peak-Usage on this cluster: 71 MiB (~0.7% of default request).
+  # 1024 MB cache → ~1228 MiB pod request, still 14× headroom over peak.
+  # See PR description for the node-01 memory-pressure incident this fixes.
+  allocatedMemory: 1024
+
+resultsCache:
+  # Chart default 1024 MB → +20% sidecar overhead = 1229 MiB pod request.
+  # Observed Peak-Usage on this cluster: 34 MiB.
+  # 256 MB cache → ~307 MiB pod request, 7× headroom over peak.
+  allocatedMemory: 256
+
 serviceMonitor:
   enabled: true
   interval: 30s
