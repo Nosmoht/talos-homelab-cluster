@@ -28,13 +28,26 @@ spec:
         app.kubernetes.io/component: l4-proxy
         app.kubernetes.io/part-of: homelab
       annotations:
-        # Public VIP net2 MAC: locally-administered (02:42 prefix, U/L bit set).
-        # Switched from IANA VRRP OUI 00:00:5E:00:01:63 to isolate Fritzbox
-        # port-forward delivery failure hypothesis (Test B from Phase 0 plan).
-        k8s.v1.cni.cncf.io/networks: '[{"name": "homelab-gateway-macvlan", "mac": "02:42:c0:a8:02:46"}, {"name": "homelab-gateway-macvlan-public", "mac": "02:42:c0:a8:02:63"}]'
+        # Single LAN VIP (net1, 192.168.2.70). The legacy net2 public VIP
+        # (192.168.2.99) was retired on 2026-04-17 when pi-public-ingress on
+        # node-pi-01 became the sole WAN entrypoint (docs/adr-pi-sole-public-ingress.md).
+        # Running a public macvlan VIP off a non-Pi node is structurally
+        # unsupported by FRITZ!OS >=8.25 — see
+        # docs/2026-04-15-fritzbox-macvlan-port-forward-exhaustion.md.
+        k8s.v1.cni.cncf.io/networks: '[{"name": "homelab-gateway-macvlan", "mac": "02:42:c0:a8:02:46"}]'
         # Bumped to force Multus NAD re-read on pod roll (NADs do not hot-reload).
-        kubectl.kubernetes.io/restartedAt: "2026-04-15T14:00:00Z"
+        kubectl.kubernetes.io/restartedAt: "2026-05-12T00:00:00Z"
     spec:
+      # Pin to gateway workers (node-04/05/06). They already host the
+      # hostNetwork Envoy that this nginx proxies to (gateway_https
+      # upstream in nginx.conf), share the same blast-radius zone, and
+      # have identical onboard Ethernet (M910q/M920q) — so macvlan
+      # auto-master selection is deterministic. Avoids re-introducing
+      # the FRITZ!OS topology pattern (two MACs on one NIC) if the
+      # scheduler picks node-pi-01 again; see
+      # docs/2026-04-15-fritzbox-macvlan-port-forward-exhaustion.md.
+      nodeSelector:
+        node-role.kubernetes.io/gateway: ""
       tolerations:
         # Allow scheduling on nodes with the DRBD lost-quorum taint so
         # ingress-front survives storage-degraded events. The pod has no PVC
@@ -72,7 +85,7 @@ spec:
           resources:
             requests: { cpu: 5m, memory: 16Mi }
             limits: { cpu: 100m, memory: 32Mi }
-        # Force a DHCPv4 DISCOVER/OFFER/REQUEST/ACK exchange on each macvlan
+        # Force a DHCPv4 DISCOVER/OFFER/REQUEST/ACK exchange on the macvlan
         # interface using its pinned MAC. FRITZ!OS 8.20+ refuses to populate
         # Hosts1.GetSpecificHostEntryByIP with NewActive=True (and refuses
         # NAT delivery for port forwards) for hosts that only speak ARP from
@@ -100,15 +113,6 @@ spec:
           resources:
             requests: { cpu: 5m, memory: 8Mi }
             limits: { cpu: 50m, memory: 16Mi }
-        - name: net2-dhcp-register
-          image: busybox:1.36
-          command: ["sh", "-c", "udhcpc -s /bin/true -n -q -f -i net2 || echo 'dhcp probe failed on net2, continuing'"]
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-          resources:
-            requests: { cpu: 5m, memory: 8Mi }
-            limits: { cpu: 50m, memory: 16Mi }
       containers:
         - name: nginx
           image: nginx:1.27-alpine
@@ -130,7 +134,7 @@ spec:
             - name: nginx-run
               mountPath: /var/run
           # No containerPorts / readinessProbe: nginx binds only on the macvlan
-          # VIPs (net1/net2), not on the pod-network eth0 IP. A tcpSocket probe
+          # VIP (net1), not on the pod-network eth0 IP. A tcpSocket probe
           # would target eth0 and fail. The init container `nginx-validate`
           # already gates start on config syntax; verify VIP reachability from
           # outside the pod (LAN curl) post-deploy.
