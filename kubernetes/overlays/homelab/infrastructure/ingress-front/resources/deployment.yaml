@@ -38,6 +38,16 @@ spec:
         # Bumped to force Multus NAD re-read on pod roll (NADs do not hot-reload).
         kubectl.kubernetes.io/restartedAt: "2026-05-12T00:00:00Z"
     spec:
+      # Pin to gateway workers (node-04/05/06). They already host the
+      # hostNetwork Envoy that this nginx proxies to (gateway_https
+      # upstream in nginx.conf), share the same blast-radius zone, and
+      # have identical onboard Ethernet (M910q/M920q) — so macvlan
+      # auto-master selection is deterministic. Avoids re-introducing
+      # the FRITZ!OS topology pattern (two MACs on one NIC) if the
+      # scheduler picks node-pi-01 again; see
+      # docs/2026-04-15-fritzbox-macvlan-port-forward-exhaustion.md.
+      nodeSelector:
+        node-role.kubernetes.io/gateway: ""
       tolerations:
         # Allow scheduling on nodes with the DRBD lost-quorum taint so
         # ingress-front survives storage-degraded events. The pod has no PVC
