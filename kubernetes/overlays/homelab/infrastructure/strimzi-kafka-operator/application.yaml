@@ -24,13 +24,9 @@ spec:
       targetRevision: main
       path: kubernetes/overlays/homelab/infrastructure/strimzi-kafka-operator/resources
       ref: cluster
-      helm:
-        valueFiles: []
     - repoURL: https://github.com/Nosmoht/talos-platform-base.git
       targetRevision: v0.1.0
       ref: base
-      helm:
-        valueFiles: []
   destination:
     server: https://kubernetes.default.svc
     namespace: kafka

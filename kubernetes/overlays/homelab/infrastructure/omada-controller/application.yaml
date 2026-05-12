@@ -30,13 +30,9 @@ spec:
       targetRevision: main
       path: kubernetes/overlays/homelab/infrastructure/omada-controller/resources
       ref: cluster
-      helm:
-        valueFiles: []
     - repoURL: https://github.com/Nosmoht/talos-platform-base.git
       targetRevision: v0.1.0
       ref: base
-      helm:
-        valueFiles: []
   destination:
     server: https://kubernetes.default.svc
     namespace: omada-controller
