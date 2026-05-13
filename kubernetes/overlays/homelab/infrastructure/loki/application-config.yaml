@@ -1,15 +1,15 @@
-# Controller App — wave 0.
+# Config App — wave 2. KSOPS-encrypted MinIO secret + ESO ExternalSecret + CNP.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault-operator
+  name: loki-config
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
   labels:
-    app.kubernetes.io/name: vault-operator
+    app.kubernetes.io/name: loki-config
     app.kubernetes.io/instance: homelab
-    app.kubernetes.io/component: application
+    app.kubernetes.io/component: config
     app.kubernetes.io/part-of: homelab
     app.kubernetes.io/managed-by: argocd
 spec:
@@ -17,12 +17,10 @@ spec:
   source:
     repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
     targetRevision: main
-    path: kubernetes/overlays/homelab/infrastructure/vault-operator/_rendered
-    directory:
-      include: 'manifests.yaml'
+    path: kubernetes/overlays/homelab/infrastructure/loki/resources
   destination:
     server: https://kubernetes.default.svc
-    namespace: vault
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true

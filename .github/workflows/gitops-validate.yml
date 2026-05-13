@@ -281,12 +281,16 @@ jobs:
       - name: Install yq
         # Required by render-consumer-component.sh + verify-consumer-rendered.sh
         # for the CRD/manifest split. Pinned to .tool-versions.
+        #
+        # ALWAYS install (no command-v guard): Ubuntu runners pre-install
+        # a `yq` (Python yq / different mikefarah build) whose block-scalar
+        # header output differs from the pinned one (`config.yaml: |`
+        # vs `config.yaml: |2`), causing reproducible drift in
+        # verify-consumer-rendered.sh.
         run: |
           set -eu
-          if ! command -v yq >/dev/null 2>&1; then
-            sudo wget -q "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION:-4.53.2}/yq_linux_amd64" -O /usr/local/bin/yq
-            sudo chmod +x /usr/local/bin/yq
-          fi
+          sudo wget -q "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION:-4.53.2}/yq_linux_amd64" -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
           yq --version
 
       - name: Verify consumer rendered manifests are reproducible
