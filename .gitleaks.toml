@@ -1,0 +1,31 @@
+# gitleaks config for the talos-homelab-cluster repo.
+#
+# Extends the default ruleset (https://github.com/gitleaks/gitleaks/blob/main/config/gitleaks.toml)
+# and adds an allowlist for upstream-chart-generated Secret manifests that
+# ship inside the rendered-manifests pipeline output.
+#
+# Why these false-positives exist:
+# Helm charts (dex, kube-prometheus-stack, …) ship Secret resources that
+# carry chart-default configuration values (config.yaml, dashboards, …)
+# encoded as base64. gitleaks's `kubernetes-secret-yaml` rule
+# pattern-matches on `data:` followed by high-entropy strings inside
+# `kind: Secret` blocks. The content is config-as-data, not credential
+# material — but the rule cannot distinguish.
+#
+# Per-finding (and per-file) allowlisting is preferred over disabling the
+# whole rule; doing the latter would also blind us to genuine secret
+# leaks the rule catches elsewhere.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Upstream-chart Secret manifests inside vendored/rendered output"
+paths = [
+  # Phase C of OCI base migration — committed kustomize-build of vendor/base
+  # rendered manifests. Content is upstream chart output; any Secrets here
+  # carry chart-default configmaps/data, not deployment credentials. Real
+  # credentials are provisioned via ESO (ExternalSecret CRs in resources/)
+  # or KSOPS-decrypted SOPS files (also in resources/, never in _rendered/).
+  '''kubernetes/overlays/homelab/infrastructure/[^/]+/_rendered/manifests\.yaml''',
+]
