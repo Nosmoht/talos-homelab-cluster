@@ -1,0 +1,17 @@
+# Stage-3 input for `make render-consumer COMPONENT=cert-manager`.
+# Combines vendored platform-base rendered manifests + namespace into a
+# single kustomize-build output, which scripts/render-consumer-component.sh
+# then splits into ../_rendered/manifests.yaml and ../_rendered/crds.yaml.
+#
+# vendor/base/ is populated by `make pull-base-oci` (cosign-verified
+# oras pull of ghcr.io/nosmoht/talos-platform-base:<.base-version>).
+#
+# Path traversal of `..` x6 needs `--load-restrictor=LoadRestrictionsNone`
+# — the render script sets that flag.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/cert-manager/namespace.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/cert-manager/_rendered/manifests.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/cert-manager/_rendered/crds.yaml

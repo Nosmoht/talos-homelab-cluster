@@ -30,22 +30,28 @@ if [ "$#" -ne 1 ]; then
 fi
 COMP="$1"
 OVERLAY_DIR="${ROOT}/kubernetes/overlays/homelab/infrastructure/${COMP}"
+# Render entry is _rendered-overlay/, NOT the top-level overlay dir. The
+# top-level dir emits ArgoCD Application resources (consumed by App-of-Apps);
+# _rendered-overlay/ emits the workload manifests vendored from
+# talos-platform-base, which get split into _rendered/manifests.yaml +
+# _rendered/crds.yaml below. Mirrors the platform-base layout.
+RENDER_INPUT_DIR="${OVERLAY_DIR}/_rendered-overlay"
 RENDERED_DIR="${OVERLAY_DIR}/_rendered"
 
 [ -d "${OVERLAY_DIR}" ] || { echo "error: overlay dir not found: ${OVERLAY_DIR}" >&2; exit 1; }
-[ -f "${OVERLAY_DIR}/kustomization.yaml" ] || { echo "error: kustomization.yaml missing in ${OVERLAY_DIR}" >&2; exit 1; }
+[ -f "${RENDER_INPUT_DIR}/kustomization.yaml" ] || { echo "error: kustomization.yaml missing in ${RENDER_INPUT_DIR} (consumer overlay must define a _rendered-overlay/ entry that pulls in vendor/base manifests)" >&2; exit 1; }
 [ -d "${ROOT}/vendor/base" ] || { echo "error: vendor/base/ missing — run \`make pull-base-oci\` first" >&2; exit 1; }
 
 mkdir -p "${RENDERED_DIR}"
 
 # --load-restrictor=LoadRestrictionsNone is required because consumer
 # overlays reference vendored manifests via paths that traverse `..`
-# (e.g. ../../../../../vendor/base/kubernetes/base/infrastructure/...).
+# (e.g. ../../../../../../vendor/base/kubernetes/base/infrastructure/...).
 # kustomize 5.x rejects such traversal by default.
-echo "==> [${COMP}] Stage-3 render (kustomize build of consumer overlay)"
+echo "==> [${COMP}] Stage-3 render (kustomize build of consumer _rendered-overlay/)"
 stage3_out="$(mktemp)"
 trap 'rm -f "${stage3_out}"' EXIT
-kustomize build --load-restrictor=LoadRestrictionsNone "${OVERLAY_DIR}" > "${stage3_out}" \
+kustomize build --load-restrictor=LoadRestrictionsNone "${RENDER_INPUT_DIR}" > "${stage3_out}" \
   || { echo "error: kustomize build failed" >&2; exit 2; }
 
 [ -s "${stage3_out}" ] || { echo "error: kustomize build produced empty output for ${COMP}" >&2; exit 3; }
