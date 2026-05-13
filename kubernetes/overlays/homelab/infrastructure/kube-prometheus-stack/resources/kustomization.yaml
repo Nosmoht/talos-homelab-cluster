@@ -89,3 +89,8 @@ resources:
   - external-secret-grafana-oidc.yaml  # Phase A.3
   - external-secret-oauth2-proxy-secrets.yaml  # Phase A.3
   - external-secret-grafana-admin-credentials.yaml  # Phase A.3 — new (no SOPS source)
+  # Phase C.3 — PreSync hook gating PrometheusRule + ServiceMonitor CRs
+  # on prometheus-operator admission webhook readiness.
+  - presync-hook-sa.yaml
+  - presync-hook-role.yaml
+  - presync-hook-job.yaml

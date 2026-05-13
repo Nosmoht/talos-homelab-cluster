@@ -1,0 +1,40 @@
+# CRDs App — wave -5.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack-crds
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: crds
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  source:
+    repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+    targetRevision: main
+    path: kubernetes/overlays/homelab/infrastructure/kube-prometheus-stack/_rendered
+    directory:
+      include: 'crds.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - Replace=false
+      - CreateNamespace=false
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: presync-hook-kube-prometheus-stack
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: presync-hook-kube-prometheus-stack
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: hook-sa
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
