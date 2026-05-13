@@ -104,7 +104,7 @@ render-consumer: ## Stage-3 render of one overlay. Usage: make render-consumer C
 	@./scripts/render-consumer-component.sh "$(COMPONENT)"
 
 render-consumer-all: ## Render every consumer overlay that already has a _rendered/ dir
-	@components="$$(find kubernetes/overlays/homelab/infrastructure -mindepth 2 -maxdepth 2 -name '_rendered' -type d -exec dirname {} \; | xargs -n1 basename | sort)"; \
+	@components="$$(find kubernetes/overlays/homelab/infrastructure -mindepth 2 -maxdepth 2 -name '_rendered' -type d | while IFS= read -r d; do basename "$$(dirname "$$d")"; done | sort -u)"; \
 	if [ -z "$$components" ]; then echo "no consumer overlays with _rendered/ — run \`make render-consumer COMPONENT=<name>\` first to bootstrap one"; exit 0; fi; \
 	for c in $$components; do ./scripts/render-consumer-component.sh "$$c"; done
 

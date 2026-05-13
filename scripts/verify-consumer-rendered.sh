@@ -19,8 +19,12 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 INFRA_DIR="${ROOT}/kubernetes/overlays/homelab/infrastructure"
 
-components="$(find "${INFRA_DIR}" -mindepth 2 -maxdepth 2 -name '_rendered' -type d -exec dirname {} \; \
-  | xargs -n1 basename | sort)"
+# Use a while-loop instead of `xargs -n1 basename` so that empty find
+# output does not call basename with zero arguments (which exits with
+# "basename: missing operand" and trips set -e).
+components="$(find "${INFRA_DIR}" -mindepth 2 -maxdepth 2 -name '_rendered' -type d \
+  | while IFS= read -r d; do basename "$(dirname "$d")"; done \
+  | sort -u)"
 
 if [ -z "${components}" ]; then
   echo "no consumer overlays with _rendered/ found — nothing to verify"
