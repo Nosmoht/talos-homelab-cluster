@@ -1,0 +1,9 @@
+# Stage-3 input. Namespace `monitoring` is managed by App-of-Apps via
+# kubernetes/overlays/homelab/infrastructure/namespaces-psa.yaml, so we
+# skip vendor namespace.yaml here to avoid dual-ownership.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/alloy/_rendered/manifests.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/alloy/_rendered/crds.yaml

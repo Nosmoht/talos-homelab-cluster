@@ -1,0 +1,698 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery
+  namespace: node-feature-discovery
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-gc
+  namespace: node-feature-discovery
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    helm.sh/hook: post-delete
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-prune
+  namespace: node-feature-discovery
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-worker
+  namespace: node-feature-discovery
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-worker
+  namespace: node-feature-discovery
+rules:
+  - apiGroups:
+      - nfd.k8s-sigs.io
+    resources:
+      - nodefeatures
+    verbs:
+      - create
+      - get
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - watch
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/status
+    verbs:
+      - get
+      - patch
+      - update
+      - list
+  - apiGroups:
+      - nfd.k8s-sigs.io
+    resources:
+      - nodefeatures
+      - nodefeaturerules
+      - nodefeaturegroups
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - nfd.k8s-sigs.io
+    resources:
+      - nodefeaturegroups/status
+    verbs:
+      - patch
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - coordination.k8s.io
+    resourceNames:
+      - nfd-master.nfd.kubernetes.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-gc
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/proxy
+    verbs:
+      - get
+  - apiGroups:
+      - topology.node.k8s.io
+    resources:
+      - noderesourcetopologies
+    verbs:
+      - delete
+      - list
+  - apiGroups:
+      - nfd.k8s-sigs.io
+    resources:
+      - nodefeatures
+    verbs:
+      - delete
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    helm.sh/hook: post-delete
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-prune
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/status
+    verbs:
+      - get
+      - patch
+      - update
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-worker
+  namespace: node-feature-discovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: node-feature-discovery-worker
+subjects:
+  - kind: ServiceAccount
+    name: node-feature-discovery-worker
+    namespace: node-feature-discovery
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-feature-discovery
+subjects:
+  - kind: ServiceAccount
+    name: node-feature-discovery
+    namespace: node-feature-discovery
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-gc
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-feature-discovery-gc
+subjects:
+  - kind: ServiceAccount
+    name: node-feature-discovery-gc
+    namespace: node-feature-discovery
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    helm.sh/hook: post-delete
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-prune
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-feature-discovery-prune
+subjects:
+  - kind: ServiceAccount
+    name: node-feature-discovery-prune
+    namespace: node-feature-discovery
+---
+apiVersion: v1
+data:
+  nfd-master.conf: "null"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-master-conf
+  namespace: node-feature-discovery
+---
+apiVersion: v1
+data:
+  nfd-worker.conf: "null"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-worker-conf
+  namespace: node-feature-discovery
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+    role: gc
+  name: node-feature-discovery-gc
+  namespace: node-feature-discovery
+spec:
+  replicas: 1
+  revisionHistoryLimit: null
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: node-feature-discovery
+      app.kubernetes.io/name: node-feature-discovery
+      role: gc
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: node-feature-discovery
+        app.kubernetes.io/name: node-feature-discovery
+        role: gc
+    spec:
+      containers:
+        - args:
+            - -gc-interval=1h
+          command:
+            - nfd-gc
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          image: registry.k8s.io/nfd/node-feature-discovery:v0.17.4
+          imagePullPolicy: IfNotPresent
+          name: gc
+          ports:
+            - containerPort: 8081
+              name: metrics
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              cpu: 10m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: false
+      securityContext: {}
+      serviceAccountName: node-feature-discovery-gc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+    role: master
+  name: node-feature-discovery-master
+  namespace: node-feature-discovery
+spec:
+  replicas: 1
+  revisionHistoryLimit: null
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: node-feature-discovery
+      app.kubernetes.io/name: node-feature-discovery
+      role: master
+  template:
+    metadata:
+      annotations:
+        checksum/config: a8092f8e3d6a07c49be2e0011d538335e186a40954ae9caa79ad1285b269f776
+      labels:
+        app.kubernetes.io/instance: node-feature-discovery
+        app.kubernetes.io/name: node-feature-discovery
+        role: master
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: In
+                    values:
+                      - ""
+              weight: 1
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: In
+                    values:
+                      - ""
+              weight: 1
+      containers:
+        - args:
+            - -enable-leader-election
+            - -feature-gates=NodeFeatureGroupAPI=false
+            - -metrics=8081
+            - -grpc-health=8082
+          command:
+            - nfd-master
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          image: registry.k8s.io/nfd/node-feature-discovery:v0.17.4
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            grpc:
+              port: 8082
+          name: master
+          ports:
+            - containerPort: 8081
+              name: metrics
+            - containerPort: 8082
+              name: health
+          readinessProbe:
+            failureThreshold: 10
+            grpc:
+              port: 8082
+          resources:
+            limits:
+              memory: 4Gi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          startupProbe:
+            failureThreshold: 30
+            grpc:
+              port: 8082
+          volumeMounts:
+            - mountPath: /etc/kubernetes/node-feature-discovery
+              name: nfd-master-conf
+              readOnly: true
+      enableServiceLinks: false
+      hostNetwork: false
+      securityContext: {}
+      serviceAccountName: node-feature-discovery
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
+          value: ""
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Equal
+          value: ""
+      volumes:
+        - configMap:
+            items:
+              - key: nfd-master.conf
+                path: nfd-master.conf
+            name: node-feature-discovery-master-conf
+          name: nfd-master-conf
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+    role: worker
+  name: node-feature-discovery-worker
+  namespace: node-feature-discovery
+spec:
+  revisionHistoryLimit: null
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: node-feature-discovery
+      app.kubernetes.io/name: node-feature-discovery
+      role: worker
+  template:
+    metadata:
+      annotations:
+        checksum/config: 3c119fe41e55c8e322fe17a252c123d0b71bda509d659564155021dbdacf5a07
+      labels:
+        app.kubernetes.io/instance: node-feature-discovery
+        app.kubernetes.io/name: node-feature-discovery
+        role: worker
+    spec:
+      containers:
+        - args:
+            - -feature-gates=NodeFeatureGroupAPI=false
+            - -metrics=8081
+            - -grpc-health=8082
+          command:
+            - nfd-worker
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+          image: registry.k8s.io/nfd/node-feature-discovery:v0.17.4
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            grpc:
+              port: 8082
+            initialDelaySeconds: 10
+          name: worker
+          ports:
+            - containerPort: 8081
+              name: metrics
+            - containerPort: 8082
+              name: health
+          readinessProbe:
+            failureThreshold: 10
+            grpc:
+              port: 8082
+            initialDelaySeconds: 5
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 5m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts:
+            - mountPath: /host-boot
+              name: host-boot
+              readOnly: true
+            - mountPath: /host-etc/os-release
+              name: host-os-release
+              readOnly: true
+            - mountPath: /host-sys
+              name: host-sys
+              readOnly: true
+            - mountPath: /host-usr/lib
+              name: host-usr-lib
+              readOnly: true
+            - mountPath: /host-lib
+              name: host-lib
+              readOnly: true
+            - mountPath: /host-proc/swaps
+              name: host-proc-swaps
+              readOnly: true
+            - mountPath: /etc/kubernetes/node-feature-discovery/features.d/
+              name: features-d
+              readOnly: true
+            - mountPath: /etc/kubernetes/node-feature-discovery
+              name: nfd-worker-conf
+              readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: false
+      securityContext: {}
+      serviceAccountName: node-feature-discovery-worker
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Equal
+          value: present
+      volumes:
+        - hostPath:
+            path: /boot
+          name: host-boot
+        - hostPath:
+            path: /etc/os-release
+          name: host-os-release
+        - hostPath:
+            path: /sys
+          name: host-sys
+        - hostPath:
+            path: /usr/lib
+          name: host-usr-lib
+        - hostPath:
+            path: /lib
+          name: host-lib
+        - hostPath:
+            path: /proc/swaps
+          name: host-proc-swaps
+        - hostPath:
+            path: /etc/kubernetes/node-feature-discovery/features.d/
+          name: features-d
+        - configMap:
+            items:
+              - key: nfd-worker.conf
+                path: nfd-worker.conf
+            name: node-feature-discovery-worker-conf
+          name: nfd-worker-conf
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    helm.sh/hook: post-delete
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/instance: node-feature-discovery
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: node-feature-discovery
+    app.kubernetes.io/version: v0.17.4
+    helm.sh/chart: node-feature-discovery-0.17.4
+  name: node-feature-discovery-prune
+  namespace: node-feature-discovery
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: node-feature-discovery
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: node-feature-discovery
+        app.kubernetes.io/version: v0.17.4
+        helm.sh/chart: node-feature-discovery-0.17.4
+        role: prune
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: In
+                    values:
+                      - ""
+              weight: 1
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: In
+                    values:
+                      - ""
+              weight: 1
+      containers:
+        - args:
+            - -prune
+          command:
+            - nfd-master
+          image: registry.k8s.io/nfd/node-feature-discovery:v0.17.4
+          imagePullPolicy: IfNotPresent
+          name: nfd-master
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+      restartPolicy: Never
+      serviceAccountName: node-feature-discovery-prune
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
+          value: ""
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Equal
+          value: ""

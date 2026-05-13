@@ -1,6 +1,7 @@
+# Top-level overlay entry — consumed by App-of-Apps.
+# Single App (no CRDs, no resources/ overlay).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../../../base/infrastructure/nvidia-dcgm-exporter
   - application.yaml
