@@ -17,6 +17,12 @@ jobs:
       run:
         shell: sh
     env:
+      # Tool versions — KEEP IN SYNC with .tool-versions at repo root.
+      # The drift-check step below fails the workflow on mismatch.
+      # .tool-versions is the single source of truth (asdf/mise format);
+      # these env vars exist because GitHub Actions inputs cannot read
+      # .tool-versions natively.
+      # SOPS + KSOPS will be removed during Phase C.6 (KSOPS->ESO migration).
       KUSTOMIZE_VERSION: 5.3.0
       KUSTOMIZE_SHA256_LINUX_AMD64: 3ab32f92360d752a2a53e56be073b649abc1e7351b912c0fb32b960d1def854c
       CONFTEST_VERSION: v0.53.0
@@ -24,10 +30,38 @@ jobs:
       SOPS_VERSION: v3.8.1
       KSOPS_VERSION: v4.3.3
       KUBECONFORM_VERSION: 0.6.7
+      HELM_VERSION: 3.16.4
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify env tool-versions match .tool-versions
+        # Drift-detector: the env block above and the .tool-versions file
+        # must agree. If they diverge, render output may differ between
+        # local and CI — exactly the class of failure rendered-manifests
+        # migration needs to prevent.
+        run: |
+          set -eu
+          fail=0
+          assert() {
+            tool="$1"; pinned_in_file="$2"; env_value="$3"; env_value_normalized="${env_value#v}"
+            if [ "$pinned_in_file" != "$env_value_normalized" ]; then
+              echo "DRIFT:    $tool .tool-versions=$pinned_in_file workflow-env=$env_value"
+              fail=1
+            else
+              echo "OK:       $tool $pinned_in_file"
+            fi
+          }
+          tv() { awk -v k="$1" '$1==k {print $2}' .tool-versions; }
+          assert kustomize   "$(tv kustomize)"   "$KUSTOMIZE_VERSION"
+          assert conftest    "$(tv conftest)"    "$CONFTEST_VERSION"
+          assert kyverno-cli "$(tv kyverno-cli)" "$KYVERNO_CLI_VERSION"
+          assert kubeconform "$(tv kubeconform)" "$KUBECONFORM_VERSION"
+          assert helm        "$(tv helm)"        "$HELM_VERSION"
+          assert sops        "$(tv sops)"        "$SOPS_VERSION"
+          assert ksops       "$(tv ksops)"       "$KSOPS_VERSION"
+          [ "$fail" -eq 0 ] || { echo "::error::tool-version drift detected — sync .tool-versions and workflow env"; exit 1; }
 
       - name: Enforce Talos and Cilium ownership boundaries
         run: |
@@ -71,6 +105,18 @@ jobs:
         uses: bmuschko/setup-kubeconform@v1.0.0
         with:
           kubeconform-version: ${{ env.KUBECONFORM_VERSION }}
+
+      - name: Setup helm
+        # Phase 0 of rendered-manifests migration: helm is the Stage-1
+        # renderer for components rendered consumer-side (cilium-bootstrap
+        # today; full set after Phase C). Pinned to .tool-versions to
+        # keep rendered output deterministic.
+        uses: azure/setup-helm@v4
+        with:
+          version: v${{ env.HELM_VERSION }}
+
+      - name: Verify helm install
+        run: helm version --short
 
       - name: Install sops and ksops (no decryption)
         run: |

@@ -1,0 +1,25 @@
+# Single source of truth for tool versions. asdf/mise compatible.
+#
+# Why: Phase 0 of the rendered-manifests migration pins all CI/render
+# tools to deterministic versions to prevent helm-template/kustomize-build
+# output drift between local developer machines and CI.
+#
+# CI workflows reference these versions via env vars; the `verify-tools`
+# Makefile target reads this file and confirms installed binaries match.
+# A drift-check step in gitops-validate.yml fails if the workflow env
+# vars and this file disagree.
+#
+# Update workflow: bump version here, then update matching env vars in
+# .github/workflows/gitops-validate.yml, then run `make verify-tools`
+# locally to confirm.
+#
+# sops + ksops will be removed during Phase C.6 (KSOPS->ESO migration).
+helm 3.16.4
+kustomize 5.3.0
+oras 1.2.0
+cosign 2.4.1
+conftest 0.53.0
+kyverno-cli 1.17.1
+kubeconform 0.6.7
+sops 3.8.1
+ksops 4.3.3
