@@ -14,3 +14,7 @@ resources:
   - secret-store.yaml  # Phase A.2 — ESO SecretStore for kv/clusters/homelab/cert-manager/*
   - external-secrets-sa.yaml  # Phase A.3 — SA used by SecretStore
   - external-secret-google-cloud-dns.yaml  # Phase A.3
+  # Phase C.2 — PreSync hook gating cert-manager-config sync on webhook readiness.
+  - presync-hook-sa.yaml
+  - presync-hook-role.yaml
+  - presync-hook-job.yaml

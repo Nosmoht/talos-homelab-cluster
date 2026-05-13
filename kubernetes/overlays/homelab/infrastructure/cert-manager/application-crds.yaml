@@ -1,17 +1,17 @@
-# Controller App — wave 0. Reads _rendered/manifests.yaml (no CRDs;
-# those go via cert-manager-crds at wave -5). See
+# CRDs App — wave -5. Reads _rendered/crds.yaml only. Prune=false so
+# Application deletion does not orphan CRs. See
 # docs/rendered-manifests-application-patterns.md.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cert-manager
+  name: cert-manager-crds
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "-5"
   labels:
-    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/name: cert-manager-crds
     app.kubernetes.io/instance: homelab
-    app.kubernetes.io/component: application
+    app.kubernetes.io/component: crds
     app.kubernetes.io/part-of: homelab
     app.kubernetes.io/managed-by: argocd
 spec:
@@ -21,19 +21,19 @@ spec:
     targetRevision: main
     path: kubernetes/overlays/homelab/infrastructure/cert-manager/_rendered
     directory:
-      # exclude crds.yaml — owned by cert-manager-crds App at wave -5
-      include: 'manifests.yaml'
+      include: 'crds.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
   syncPolicy:
     automated:
-      prune: true
+      prune: false
       selfHeal: true
     syncOptions:
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true
+      - Replace=false
       - CreateNamespace=false
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
@@ -41,12 +41,8 @@ spec:
         factor: 2
         maxDuration: 3m
   ignoreDifferences:
-    # cainjector mutates caBundle on its own webhooks at runtime.
-    - group: admissionregistration.k8s.io
-      kind: MutatingWebhookConfiguration
+    # cainjector mutates conversion.webhook.clientConfig.caBundle at runtime.
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
       jqPathExpressions:
-        - '.webhooks[]?.clientConfig.caBundle'
-    - group: admissionregistration.k8s.io
-      kind: ValidatingWebhookConfiguration
-      jqPathExpressions:
-        - '.webhooks[]?.clientConfig.caBundle'
+        - '.spec.conversion.webhook.clientConfig.caBundle'

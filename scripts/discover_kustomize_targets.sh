@@ -30,6 +30,13 @@ append_targets_from_root() {
       */resources/*)
         continue
         ;;
+      */_rendered-overlay/*|*/_rendered-overlay/)
+        # Render-pipeline staging dir — needs
+        # --load-restrictor=LoadRestrictionsNone because it traverses
+        # .. into vendor/base. verify-consumer-rendered.sh exercises
+        # this path with the right flag; the safe-render gate skips it.
+        continue
+        ;;
     esac
 
     printf '%s\n' "$dir" >> "$tmp_file"

@@ -13,7 +13,15 @@ skip_files="kubernetes/bootstrap/cilium/cilium.yaml,kubernetes/overlays/homelab/
 # vendor/base/ holds the OCI-pulled talos-platform-base rendered manifests.
 # Those are scanned + signed upstream; re-scanning them downstream double-
 # counts findings and breaks the gate for issues the upstream owns.
-skip_dirs="vendor/base"
+#
+# Each consumer overlay's _rendered/ directory is the kustomize-build output
+# that fans vendor/base manifests through the overlay's _rendered-overlay/.
+# When the overlay is a passthrough (no RBAC/securityContext patches in
+# _rendered-overlay/), the content is byte-for-byte upstream and the same
+# upstream-scanned argument applies. If a future overlay adds patches that
+# materially alter RBAC or securityContext, drop the glob and switch the
+# affected component to per-finding entries in .trivyignore.yaml.
+skip_dirs="vendor/base,kubernetes/overlays/homelab/infrastructure/*/_rendered"
 
 if ! command -v trivy >/dev/null 2>&1; then
   cat >&2 <<EOF

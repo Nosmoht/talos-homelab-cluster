@@ -13,6 +13,9 @@ Plans/
 .mcp.json.local
 .mcp.json.bak-*
 
+# validate-gitops scratch dir (rendered manifests, trivy report, conftest lists).
+.work/
+
 # Vendored OCI base (Phase C of rendered-manifests migration).
 # Pulled by `make pull-base-oci` from ghcr.io/nosmoht/talos-platform-base
 # at the tag pinned in .base-version. Never committed — every developer
