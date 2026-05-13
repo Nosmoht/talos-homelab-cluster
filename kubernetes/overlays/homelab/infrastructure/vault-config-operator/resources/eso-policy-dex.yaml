@@ -19,9 +19,9 @@ spec:
       name: controller-manager
   type: acl
   policy: |
-    path "kv/data/clusters/homelab/dex/dex-oidc-clients" {
+    path "kv/data/clusters/homelab/dex/dex-oidc-secrets" {
       capabilities = ["read"]
     }
-    path "kv/metadata/clusters/homelab/dex/dex-oidc-clients" {
+    path "kv/metadata/clusters/homelab/dex/dex-oidc-secrets" {
       capabilities = ["read"]
     }

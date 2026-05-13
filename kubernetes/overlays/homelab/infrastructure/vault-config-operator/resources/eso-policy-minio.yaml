@@ -19,9 +19,9 @@ spec:
       name: controller-manager
   type: acl
   policy: |
-    path "kv/data/clusters/homelab/minio/minio-env-configuration" {
+    path "kv/data/clusters/homelab/minio/myminio-env-configuration" {
       capabilities = ["read"]
     }
-    path "kv/metadata/clusters/homelab/minio/minio-env-configuration" {
+    path "kv/metadata/clusters/homelab/minio/myminio-env-configuration" {
       capabilities = ["read"]
     }

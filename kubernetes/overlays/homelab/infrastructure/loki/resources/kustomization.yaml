@@ -6,3 +6,4 @@ generators:
 
 resources:
   - cnp-loki.yaml
+  - external-secret-loki-minio-credentials.yaml  # Phase A.3 (uses SecretStore from kube-prometheus-stack overlay)

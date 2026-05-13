@@ -49,11 +49,11 @@ take over.
 | SOPS file (today) | Target Vault path | Secret namespace | Keys |
 |---|---|---|---|
 | `cert-manager/resources/secret.sops.yaml` | `kv/clusters/homelab/cert-manager/google-cloud-dns` | cert-manager | `service-account-key.json` |
-| `dex/resources/secret.sops.yaml` | `kv/clusters/homelab/dex/dex-oidc-clients` | dex | `google-client-id`, `google-client-secret`, `argocd-oidc-client-secret`, `argo-workflows-oidc-client-secret`, `grafana-oidc-client-secret`, `prometheus-oidc-client-secret`, `alertmanager-oidc-client-secret` |
+| `dex/resources/secret.sops.yaml` | `kv/clusters/homelab/dex/dex-oidc-secrets` | dex | `google-client-id`, `google-client-secret`, `argocd-oidc-client-secret`, `argo-workflows-oidc-client-secret`, `grafana-oidc-client-secret`, `prometheus-oidc-client-secret`, `alertmanager-oidc-client-secret` |
 | `loki/resources/secret-minio-credentials.sops.yaml` | `kv/clusters/homelab/monitoring/loki-minio-credentials` | monitoring | `LOKI_S3_ACCESS_KEY_ID`, `LOKI_S3_SECRET_ACCESS_KEY` |
-| `minio/resources/secret-minio-env-configuration.sops.yaml` | `kv/clusters/homelab/minio/minio-env-configuration` | minio | `config.env` |
-| `kube-prometheus-stack/resources/grafana-oidc-secret.sops.yaml` | `kv/clusters/homelab/monitoring/grafana-oidc-client` | monitoring | `client-secret` |
-| `kube-prometheus-stack/resources/oauth2-proxy-secret.sops.yaml` | `kv/clusters/homelab/monitoring/oauth2-proxy` | monitoring | `prometheus-client-secret`, `alertmanager-client-secret`, `prometheus-cookie-secret`, `alertmanager-cookie-secret` |
+| `minio/resources/secret-minio-env-configuration.sops.yaml` | `kv/clusters/homelab/minio/myminio-env-configuration` | minio | `config.env` |
+| `kube-prometheus-stack/resources/grafana-oidc-secret.sops.yaml` | `kv/clusters/homelab/monitoring/grafana-oidc` | monitoring | `client-secret` |
+| `kube-prometheus-stack/resources/oauth2-proxy-secret.sops.yaml` | `kv/clusters/homelab/monitoring/oauth2-proxy-secrets` | monitoring | `prometheus-client-secret`, `alertmanager-client-secret`, `prometheus-cookie-secret`, `alertmanager-cookie-secret` |
 | (NEW — no SOPS source) | `kv/clusters/homelab/monitoring/grafana-admin-credentials` | monitoring | `admin-user`, `admin-password` |
 
 The last row (`grafana-admin-credentials`) is new: the
@@ -80,7 +80,7 @@ unset HISTFILE    # belt and braces
 # Example for the dex OIDC clients Secret. Adapt path/file/keys per row.
 sops -d kubernetes/overlays/homelab/infrastructure/dex/resources/secret.sops.yaml \
   | yq -o=json '.stringData' \
-  | vault kv put -mount=kv "clusters/homelab/dex/dex-oidc-clients" -
+  | vault kv put -mount=kv "clusters/homelab/dex/dex-oidc-secrets" -
 
 # For the cert-manager google-cloud-dns Secret (data is base64'd):
 sops -d kubernetes/overlays/homelab/infrastructure/cert-manager/resources/secret.sops.yaml \
@@ -99,11 +99,11 @@ After all paths are populated, verify with:
 ```bash
 for path in \
   cert-manager/google-cloud-dns \
-  dex/dex-oidc-clients \
+  dex/dex-oidc-secrets \
   monitoring/loki-minio-credentials \
-  minio/minio-env-configuration \
-  monitoring/grafana-oidc-client \
-  monitoring/oauth2-proxy \
+  minio/myminio-env-configuration \
+  monitoring/grafana-oidc \
+  monitoring/oauth2-proxy-secrets \
   monitoring/grafana-admin-credentials; do
   vault kv get -mount=kv "clusters/homelab/$path" >/dev/null \
     && echo "OK:      $path" \

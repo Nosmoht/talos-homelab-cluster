@@ -9,6 +9,8 @@ resources:
   - cnp-minio.yaml
   - servicemonitor-minio.yaml
   - secret-store.yaml  # Phase A.2 — ESO SecretStore for kv/clusters/homelab/minio/*
+  - external-secrets-sa.yaml  # Phase A.3 — SA used by SecretStore
+  - external-secret-myminio-env-configuration.yaml  # Phase A.3
 
 generatorOptions:
   disableNameSuffixHash: true

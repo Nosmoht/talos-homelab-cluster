@@ -29,16 +29,16 @@ spec:
     path "kv/metadata/clusters/homelab/monitoring/loki-minio-credentials" {
       capabilities = ["read"]
     }
-    path "kv/data/clusters/homelab/monitoring/grafana-oidc-client" {
+    path "kv/data/clusters/homelab/monitoring/grafana-oidc" {
       capabilities = ["read"]
     }
-    path "kv/metadata/clusters/homelab/monitoring/grafana-oidc-client" {
+    path "kv/metadata/clusters/homelab/monitoring/grafana-oidc" {
       capabilities = ["read"]
     }
-    path "kv/data/clusters/homelab/monitoring/oauth2-proxy" {
+    path "kv/data/clusters/homelab/monitoring/oauth2-proxy-secrets" {
       capabilities = ["read"]
     }
-    path "kv/metadata/clusters/homelab/monitoring/oauth2-proxy" {
+    path "kv/metadata/clusters/homelab/monitoring/oauth2-proxy-secrets" {
       capabilities = ["read"]
     }
     path "kv/data/clusters/homelab/monitoring/grafana-admin-credentials" {
