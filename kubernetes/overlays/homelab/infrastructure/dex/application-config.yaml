@@ -1,15 +1,16 @@
-# Controller App — wave 0. No CRDs ship with this rendered output.
+# Config App — wave 2. Reads resources/: HTTPRoute, CNPs, ESO Secret +
+# SecretStore, KSOPS-encrypted secret.sops.yaml, PostgreSQL Cluster CR.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: tetragon
+  name: dex-config
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
   labels:
-    app.kubernetes.io/name: tetragon
+    app.kubernetes.io/name: dex-config
     app.kubernetes.io/instance: homelab
-    app.kubernetes.io/component: application
+    app.kubernetes.io/component: config
     app.kubernetes.io/part-of: homelab
     app.kubernetes.io/managed-by: argocd
 spec:
@@ -17,10 +18,10 @@ spec:
   source:
     repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
     targetRevision: main
-    path: kubernetes/overlays/homelab/infrastructure/tetragon/_rendered
+    path: kubernetes/overlays/homelab/infrastructure/dex/resources
   destination:
     server: https://kubernetes.default.svc
-    namespace: tetragon
+    namespace: dex
   syncPolicy:
     automated:
       prune: true
