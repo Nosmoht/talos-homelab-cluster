@@ -10,6 +10,10 @@ report_file="$work_dir/trivy-report.txt"
 severity=${TRIVY_SEVERITY:-HIGH,CRITICAL}
 
 skip_files="kubernetes/bootstrap/cilium/cilium.yaml,kubernetes/overlays/homelab/infrastructure/piraeus-operator/resources/storage-pool-autovg.yaml"
+# vendor/base/ holds the OCI-pulled talos-platform-base rendered manifests.
+# Those are scanned + signed upstream; re-scanning them downstream double-
+# counts findings and breaks the gate for issues the upstream owns.
+skip_dirs="vendor/base"
 
 if ! command -v trivy >/dev/null 2>&1; then
   cat >&2 <<EOF
@@ -43,6 +47,7 @@ trivy config \
   --severity "$severity" \
   --exit-code 1 \
   --skip-files "$skip_files" \
+  --skip-dirs "$skip_dirs" \
   --ignorefile .trivyignore.yaml \
   --format table \
   --output "$report_file" \
