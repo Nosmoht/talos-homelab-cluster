@@ -266,6 +266,55 @@ jobs:
       - name: Conftest policy checks
         run: ./scripts/run_conftest.sh
 
+      - name: Install oras CLI
+        # Required by Phase C consumer-render flow (pull-base-oci.sh).
+        # Pinned via .tool-versions; matches the upstream OCI publish.
+        uses: oras-project/setup-oras@v1
+        with:
+          version: 1.2.0
+
+      - name: Install cosign CLI
+        # Required by Phase C consumer-render flow (pull-base-oci.sh
+        # verifies the OCI artifact's keyless OIDC signature).
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - name: Install yq
+        # Required by render-consumer-component.sh + verify-consumer-rendered.sh
+        # for the CRD/manifest split. Pinned to .tool-versions.
+        run: |
+          set -eu
+          if ! command -v yq >/dev/null 2>&1; then
+            sudo wget -q "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION:-4.53.2}/yq_linux_amd64" -O /usr/local/bin/yq
+            sudo chmod +x /usr/local/bin/yq
+          fi
+          yq --version
+
+      - name: Verify consumer rendered manifests are reproducible
+        # Phase C.5 of rendered-manifests migration. Re-renders every
+        # consumer overlay that already has a _rendered/ directory and
+        # diffs against the committed output. Drift = build fails.
+        #
+        # The step is conditional on the OCI base tag actually being
+        # published — until that is true, vendor/base/ cannot be
+        # populated and the step exits 0 with a notice. Once the
+        # upstream tag exists, the step pulls the base, re-renders,
+        # and enforces no drift.
+        run: |
+          set -eu
+          if [ ! -f .base-version ]; then
+            echo "notice: .base-version missing, skipping consumer render verification"
+            exit 0
+          fi
+          tag="$(tr -d '[:space:]' < .base-version)"
+          if ! oras manifest fetch "ghcr.io/nosmoht/talos-platform-base:${tag}" >/dev/null 2>&1; then
+            echo "notice: ghcr.io/nosmoht/talos-platform-base:${tag} is not published yet"
+            echo "        skipping consumer render verification — re-enable strict mode"
+            echo "        (remove this guard) once the upstream tag is published."
+            exit 0
+          fi
+          ./scripts/pull-base-oci.sh
+          ./scripts/verify-consumer-rendered.sh
+
       # CI invokes the same scripts/run_trivy.sh wrapper as local pre-commit
       # so both paths share --ignorefile + --skip-files + severity gate.
       # Version pinned via .trivy-version (single source of truth) so setup-trivy
