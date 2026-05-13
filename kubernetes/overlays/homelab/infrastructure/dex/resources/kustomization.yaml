@@ -10,3 +10,6 @@ resources:
   - serviceaccount.yaml
   - cnp-dex.yaml
   - cnp-postgresql.yaml
+  - secret-store.yaml  # Phase A.2 — ESO SecretStore for kv/clusters/homelab/dex/*
+  - external-secrets-sa.yaml  # Phase A.3 — SA used by SecretStore
+  - external-secret-dex-oidc-secrets.yaml  # Phase A.3

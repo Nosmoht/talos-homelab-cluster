@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: eso-dex
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: eso-dex
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: vault-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  authentication:
+    path: kubernetes
+    role: vco-pki-admin
+    serviceAccount:
+      name: controller-manager
+  type: acl
+  policy: |
+    path "kv/data/clusters/homelab/dex/dex-oidc-secrets" {
+      capabilities = ["read"]
+    }
+    path "kv/metadata/clusters/homelab/dex/dex-oidc-secrets" {
+      capabilities = ["read"]
+    }

@@ -13,3 +13,16 @@ resources:
   - secret-engine-mount-pki-int.yaml
   - pki-secret-engine-config-pki-int.yaml
   - pki-secret-engine-role-cert-manager-internal.yaml
+  # Phase A.2: per-namespace Vault Policies + KubernetesAuthEngineRoles
+  # for ESO. These reference VCO CRDs that come live with Phase B's
+  # vault-config-operator deployment (sync-wave -3 in cutover). Until
+  # then, ArgoCD reports them as "OutOfSync" — that is expected and
+  # documented in plan-v2.md Phase A.
+  - eso-policy-cert-manager.yaml
+  - eso-policy-dex.yaml
+  - eso-policy-monitoring.yaml
+  - eso-policy-minio.yaml
+  - eso-role-cert-manager.yaml
+  - eso-role-dex.yaml
+  - eso-role-monitoring.yaml
+  - eso-role-minio.yaml

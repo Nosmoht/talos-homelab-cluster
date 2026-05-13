@@ -11,3 +11,6 @@ resources:
   - role-cert-manager-vault-tokenrequest.yaml
   - certificate-vault-pki-canary.yaml
   - certificate-vault-pki-canary-atlas-svc.yaml
+  - secret-store.yaml  # Phase A.2 — ESO SecretStore for kv/clusters/homelab/cert-manager/*
+  - external-secrets-sa.yaml  # Phase A.3 — SA used by SecretStore
+  - external-secret-google-cloud-dns.yaml  # Phase A.3

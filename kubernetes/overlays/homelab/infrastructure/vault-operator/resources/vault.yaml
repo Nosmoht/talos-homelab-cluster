@@ -55,7 +55,21 @@ spec:
         path: file
         options:
           file_path: /vault/logs/vault-audit.log
-    auth: []
+    # Phase A.0 of rendered-manifests migration: enable the kubernetes
+    # auth method so External Secrets Operator (ESO) can authenticate to
+    # Vault using its in-cluster ServiceAccount JWT. The mount itself is
+    # configured here (via bank-vaults externalConfig); per-namespace
+    # roles + policies are managed declaratively by vault-config-operator
+    # CRs in commit A.2 (KubernetesAuthEngineRole + Policy resources).
+    #
+    # `kubernetes_host` is the in-cluster API endpoint. bank-vaults
+    # auto-discovers the CA cert and the token_reviewer_jwt from the
+    # vault pod's projected ServiceAccount volume; no further config
+    # needed for in-cluster Vault.
+    auth:
+      - type: kubernetes
+        config:
+          kubernetes_host: https://kubernetes.default.svc
     policies:
       - name: atlas-llm-mediator
         rules: |

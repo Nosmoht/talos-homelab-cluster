@@ -1,0 +1,49 @@
+# Vault Policy granting ESO in the monitoring namespace read access to
+# loki S3 credentials, grafana OIDC client secret, oauth2-proxy secrets,
+# and the externally-provisioned grafana admin password (the latter is
+# new in Phase B — chart no longer auto-generates a random one).
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: eso-monitoring
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: eso-monitoring
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: vault-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  authentication:
+    path: kubernetes
+    role: vco-pki-admin
+    serviceAccount:
+      name: controller-manager
+  type: acl
+  policy: |
+    path "kv/data/clusters/homelab/monitoring/loki-minio-credentials" {
+      capabilities = ["read"]
+    }
+    path "kv/metadata/clusters/homelab/monitoring/loki-minio-credentials" {
+      capabilities = ["read"]
+    }
+    path "kv/data/clusters/homelab/monitoring/grafana-oidc" {
+      capabilities = ["read"]
+    }
+    path "kv/metadata/clusters/homelab/monitoring/grafana-oidc" {
+      capabilities = ["read"]
+    }
+    path "kv/data/clusters/homelab/monitoring/oauth2-proxy-secrets" {
+      capabilities = ["read"]
+    }
+    path "kv/metadata/clusters/homelab/monitoring/oauth2-proxy-secrets" {
+      capabilities = ["read"]
+    }
+    path "kv/data/clusters/homelab/monitoring/grafana-admin-credentials" {
+      capabilities = ["read"]
+    }
+    path "kv/metadata/clusters/homelab/monitoring/grafana-admin-credentials" {
+      capabilities = ["read"]
+    }
