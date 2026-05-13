@@ -1,0 +1,54 @@
+# Cluster Identity — Single Source of Truth
+# Committed in this repo (formerly gitignored, migrated 2026-05-14).
+# Schema reference: cluster.yaml.example.
+#
+# Scope: cluster identity + node inventory only. Per-node Talos MachineConfig
+# details (mac, install_disk, deviceSelector, sysctls, etc.) live in
+# talos/nodes/<name>.yaml — do NOT mirror them here.
+
+cluster:
+  name: homelab
+  overlay: homelab
+  api_vip: 192.168.2.60
+  gateway_vip: 192.168.2.70
+  network: 192.168.2.0/24
+  gateway: 192.168.2.1
+  ntp_server: 192.168.2.1
+  target_revision: main
+
+kubeconfig: /tmp/homelab-kubeconfig
+
+nodes:
+  control_plane:
+    - name: node-01
+      ip: 192.168.2.61
+      nic: enp0s31f6
+    - name: node-02
+      ip: 192.168.2.62
+      nic: enp0s31f6
+    - name: node-03
+      ip: 192.168.2.63
+      nic: enp0s31f6
+
+  workers:
+    - name: node-04
+      ip: 192.168.2.64
+      nic: enp0s31f6
+    - name: node-05
+      ip: 192.168.2.65
+      nic: enp0s31f6
+    - name: node-06
+      ip: 192.168.2.66
+      nic: enp0s31f6
+
+  gpu_workers:
+    - name: node-gpu-01
+      ip: 192.168.2.67
+      nic: enp0s20f0u2
+
+  pi_nodes:
+    - name: node-pi-01
+      ip: 192.168.2.68
+
+repo:
+  url: https://github.com/Nosmoht/talos-homelab-cluster.git

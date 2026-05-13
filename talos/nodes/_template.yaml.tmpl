@@ -1,0 +1,47 @@
+# Template for new Talos standard-worker nodes. Rendered via envsubst.
+# Compatible with Talos v1.12.x — verify on upgrade.
+#
+# Variables (all required):
+#   NODE_NAME             — hostname, e.g. node-08
+#   NODE_MAC              — primary NIC hardware address
+#   NODE_INSTALL_DISK     — stable by-path install disk, e.g. /dev/disk/by-path/pci-0000:00:17.0-ata-1
+#   NODE_LAN_IP_CIDR      — primary IP with prefix, e.g. <ip>/24
+#   NODE_DRBD_IP_CIDR     — DRBD VLAN IP with prefix (host-octet = LAN-octet - 60 per talos-config.md §DRBD Replication VLAN)
+#   NODE_NIC_DRIVER       — primary NIC driver, e.g. e1000e
+#   NODE_GATEWAY          — default gateway (also used as DNS resolver)
+#   NODE_VLAN_INTERFACE   — VLAN sub-interface, e.g. enp0s31f6.110
+#   NODE_VLAN_PARENT      — VLAN parent NIC, e.g. enp0s31f6
+#
+# Scope: standard workers only (DRBD VLAN 110 + KubeVirt patches inherited via Makefile pattern-rule).
+# CP / GPU / Pi nodes have different patch inheritance — do not render with this template.
+machine:
+  install:
+    disk: ${NODE_INSTALL_DISK}
+  network:
+    interfaces:
+      - deviceSelector:
+          hardwareAddr: ${NODE_MAC}
+          driver: ${NODE_NIC_DRIVER}
+        addresses:
+          - ${NODE_LAN_IP_CIDR}
+        routes:
+          - network: 0.0.0.0/0
+            gateway: ${NODE_GATEWAY}
+      - interface: ${NODE_VLAN_INTERFACE}
+        addresses:
+          - ${NODE_DRBD_IP_CIDR}
+    nameservers:
+      - ${NODE_GATEWAY}
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: null
+hostname: ${NODE_NAME}
+---
+apiVersion: v1alpha1
+kind: VLANConfig
+name: ${NODE_VLAN_INTERFACE}
+vlanID: 110
+vlanMode: 802.1q
+parent: ${NODE_VLAN_PARENT}
+up: true

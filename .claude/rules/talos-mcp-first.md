@@ -53,6 +53,9 @@ When a MCP tool fails: retry once, then fall back to CLI for the remainder of th
 | Upgrade Kubernetes | `talosctl upgrade-k8s --to <ver> -n <ip> -e <ip>` | No MCP equivalent — FR #30 open |
 | Config backup to file | `talosctl get mc -o yaml > /tmp/file` | MCP returns data in conversation context, not to file |
 | Client version | `talosctl version --client` | MCP queries remote nodes only |
+| Maintenance-mode version probe | `talosctl version --nodes <ip> --insecure` | top-level `--insecure` flag; MCP server requires talosconfig + TLS |
+| Maintenance-mode resource probe | `talosctl get -i <type> --nodes <ip> -o yaml` | subcommand-level `-i` flag (verified: `disks`, `links`); MCP server requires talosconfig + TLS |
+| Maintenance-mode initial apply | `talosctl apply-config --insecure --nodes <ip> --file <config>` | invoked by `make install-<node>`; fresh node has no PKI |
 
 ## Decision Flow
 

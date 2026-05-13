@@ -1,15 +1,19 @@
-# Cluster Identity — Single Source of Truth
+# Cluster Identity — Single Source of Truth (schema reference for forks)
 #
-# This file is the canonical cluster identity SOT for this repo.
+# This file shows the schema for forks of this repo. The live cluster.yaml
+# is committed at the repo root and is the canonical cluster identity SOT.
 # It is tool-agnostic: read by make (talos/Makefile), kubectl (argocd bootstrap),
 # and Claude Code skills/agents — no AI tooling required to use it.
 #
-# Copy this file to cluster.yaml (gitignored) and fill in your cluster values.
-# One cluster.yaml per working tree. For multi-cluster: pass ENV=../other/cluster.yaml
-# to talos/Makefile targets.
+# For multi-cluster: pass ENV=../other/cluster.yaml to talos/Makefile targets.
 #
 # NOTE: secrets.yaml (PKI material) is scoped to a single cluster and is NOT
 # interpolated from cluster.yaml. Each cluster has its own secrets.yaml.
+#
+# Scope: cluster identity + node inventory only (name, ip, nic). Per-node
+# Talos MachineConfig details (mac, install_disk, deviceSelector, addresses,
+# sysctls, etc.) live in talos/nodes/<name>.yaml — do NOT mirror them here,
+# that would establish a second Talos schema with drift risk.
 
 cluster:
   name: my-cluster
@@ -57,10 +61,3 @@ nodes:
 
 repo:
   url: https://github.com/your-org/your-repo.git
-
-# Hardware hints — used by skills that need hardware context without live queries
-hardware:
-  standard_nodes: "Generic x86_64"         # short description of standard node hardware
-  gpu_node: ""                             # short description of GPU node hardware
-  standard_nic_driver: ""                  # e.g. "e1000e", "igc"
-  gpu_nic_driver: ""                       # e.g. "r8152" for USB Realtek
