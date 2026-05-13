@@ -1,4 +1,4 @@
-.PHONY: argocd-install argocd-bootstrap argocd-password argocd-oidc grafana-dashboards-check validate-gitops validate-kyverno-policies install-pre-commit mcp-install mcp-verify mcp-uninstall migrate-cluster-yaml verify-tools .argocd-bootstrap-render
+.PHONY: argocd-install argocd-bootstrap argocd-password argocd-oidc grafana-dashboards-check validate-gitops validate-kyverno-policies install-pre-commit mcp-install mcp-verify mcp-uninstall migrate-cluster-yaml verify-tools pull-base-oci render-consumer render-consumer-all verify-consumer-rendered .argocd-bootstrap-render
 
 ENV ?= cluster.yaml
 
@@ -90,6 +90,26 @@ validate-gitops:
 		kubeconform -strict -ignore-missing-schemas "$$f"; \
 	done
 	./scripts/run_trivy.sh
+
+# Consumer Render Pipeline (Phase C of OCI base migration).
+# Pulls the talos-platform-base OCI artifact into vendor/base/, then
+# kustomize-builds each consumer overlay against it. The final
+# _rendered/manifests.yaml is what ArgoCD's directory-source consumes.
+
+pull-base-oci: ## Verify+pull the talos-platform-base OCI artifact into vendor/base/
+	@./scripts/pull-base-oci.sh
+
+render-consumer: ## Stage-3 render of one overlay. Usage: make render-consumer COMPONENT=<name>
+	@if [ -z "$(COMPONENT)" ]; then echo "usage: make render-consumer COMPONENT=<name>"; exit 1; fi
+	@./scripts/render-consumer-component.sh "$(COMPONENT)"
+
+render-consumer-all: ## Render every consumer overlay that already has a _rendered/ dir
+	@components="$$(find kubernetes/overlays/homelab/infrastructure -mindepth 2 -maxdepth 2 -name '_rendered' -type d -exec dirname {} \; | xargs -n1 basename | sort)"; \
+	if [ -z "$$components" ]; then echo "no consumer overlays with _rendered/ — run \`make render-consumer COMPONENT=<name>\` first to bootstrap one"; exit 0; fi; \
+	for c in $$components; do ./scripts/render-consumer-component.sh "$$c"; done
+
+verify-consumer-rendered: ## Re-render every consumer overlay and fail if committed _rendered/ drifts
+	@./scripts/verify-consumer-rendered.sh
 
 install-pre-commit:
 	uvx pre-commit install

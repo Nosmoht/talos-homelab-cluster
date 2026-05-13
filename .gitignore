@@ -13,6 +13,13 @@ Plans/
 .mcp.json.local
 .mcp.json.bak-*
 
+# Vendored OCI base (Phase C of rendered-manifests migration).
+# Pulled by `make pull-base-oci` from ghcr.io/nosmoht/talos-platform-base
+# at the tag pinned in .base-version. Never committed — every developer
+# (and CI) re-pulls it deterministically; the tarball SHA is verified
+# by cosign keyless OIDC.
+vendor/base/
+
 # Auto Claude data directory
 .auto-claude/
 
