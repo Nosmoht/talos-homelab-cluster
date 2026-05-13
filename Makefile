@@ -1,4 +1,4 @@
-.PHONY: argocd-install argocd-bootstrap argocd-password argocd-oidc grafana-dashboards-check validate-gitops validate-kyverno-policies install-pre-commit mcp-install mcp-verify mcp-uninstall migrate-cluster-yaml .argocd-bootstrap-render
+.PHONY: argocd-install argocd-bootstrap argocd-password argocd-oidc grafana-dashboards-check validate-gitops validate-kyverno-policies install-pre-commit mcp-install mcp-verify mcp-uninstall migrate-cluster-yaml verify-tools .argocd-bootstrap-render
 
 ENV ?= cluster.yaml
 
@@ -61,6 +61,9 @@ argocd-bootstrap: argocd-install .argocd-bootstrap-render
 
 argocd-password:
 	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+
+verify-tools: ## Confirm installed binaries match .tool-versions pins
+	@./scripts/verify-tools.sh
 
 argocd-oidc:
 	@OIDC_SECRET=$$(sops -d --extract '["stringData"]["argocd-oidc-client-secret"]' \
