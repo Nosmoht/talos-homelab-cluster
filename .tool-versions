@@ -14,7 +14,7 @@
 # locally to confirm.
 #
 # sops + ksops will be removed during Phase C.6 (KSOPS->ESO migration).
-helm 3.16.4
+helm 3.20.2
 kustomize 5.3.0
 oras 1.2.0
 cosign 2.4.1

@@ -30,7 +30,7 @@ jobs:
       SOPS_VERSION: v3.8.1
       KSOPS_VERSION: v4.3.3
       KUBECONFORM_VERSION: 0.6.7
-      HELM_VERSION: 3.16.4
+      HELM_VERSION: 3.20.2
 
     steps:
       - name: Checkout
