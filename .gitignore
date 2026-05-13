@@ -2,10 +2,8 @@ talos/talosconfig
 talos/generated/
 talos/.secrets.dec.yaml
 talos/.versions.stamp
-/cluster.yaml
 /talos/_out/
 /kubernetes/bootstrap/argocd/_out/
-# Transitional: keep ignored until all developer workstations have run `make migrate-cluster-yaml`.
 .claude/environment.yaml
 Plans/
 

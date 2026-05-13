@@ -42,6 +42,10 @@ paths:
   ```
   **Alternative**: narrow `deviceSelector` with both `hardwareAddr:` and `driver:` to exclude bridge/tap devices — acceptable but `VLANConfig` is cleaner.
 
+## DRBD Replication VLAN
+
+Standard workers carry a DRBD replication interface on VLAN 110 (parent `enp0s31f6`), addressed in the DRBD subnet (third octet 110). The DRBD host-octet equals the LAN host-octet minus 60 — e.g. a worker with LAN host-octet 64 receives DRBD host-octet 4. The VLAN ID, parent interface, and DRBD CIDR are stable across all standard workers; only the host-octet varies per node. CP, GPU, and Pi nodes do not carry DRBD interfaces. Concrete LAN ↔ DRBD pairings: see `talos/nodes/node-04.yaml`, `node-05.yaml`, `node-06.yaml`.
+
 ## Makefile Targets (`talos/Makefile`)
 
 Orchestration targets (use `make`):
@@ -63,6 +67,32 @@ Direct talosctl (do NOT use make wrappers):
 - Validate: `talosctl validate --config <file> --mode metal --strict`
 
 Install image resolution: `factory.talos.dev/metal-installer/<SCHEMATIC_ID>:<TALOS_VERSION>` (read from `.schematic-ids.mk` + `versions.mk`)
+
+## Makefile Template Expansion
+
+Targets `install-<node>`, `apply-<node>`, `dry-run-<node>`, `upgrade-<node>` are auto-generated for every node in `cluster.yaml` via `$(foreach node,$(ALL_NODES),$(eval $(call <TEMPLATE>,$(node))))` (Makefile lines 282-336). Adding a node entry under `cluster.yaml.nodes.{control_plane,workers,gpu_workers,pi_nodes}[]` is sufficient — no Makefile edit needed.
+
+## Schematic-to-Role Mapping
+
+Per-node install image is selected by role (Makefile lines 61-63):
+- CP + standard worker → `INSTALL_IMAGE` (`SCHEMATIC_ID`)
+- GPU worker → `GPU_INSTALL_IMAGE` (`GPU_SCHEMATIC_ID`)
+- Pi node → `PI_INSTALL_IMAGE` (`PI_SCHEMATIC_ID`)
+
+## Patch Inheritance Matrix
+
+Four separate Make pattern-rules apply different patch stacks per role (Makefile lines 127, 146, 165, 184). The Standard-worker pattern-rule is the fallback — node names matching `node-gpu-*` / `node-pi-*` hit the more specific rule first.
+
+| Role | Pattern-rule | Applied patches (in order) |
+|---|---|---|
+| Control plane | `controlplane/%.yaml` | common · cluster.yaml · drbd · controlplane · nodes/$*.yaml |
+| Standard worker | `worker/%.yaml` (fallback) | common · cluster.yaml · worker-gvisor · drbd · worker-kubevirt · nodes/$*.yaml |
+| GPU worker | `worker/node-gpu-%.yaml` | common · cluster.yaml · worker-gvisor · worker-gpu · nodes/node-gpu-$*.yaml |
+| Pi node | `worker/node-pi-%.yaml` | common · cluster.yaml · worker-pi · pi-firewall · nodes/node-pi-$*.yaml |
+
+## New-node Template (standard workers only)
+
+`talos/nodes/_template.yaml.tmpl` is the canonical envsubst-rendered scaffold for new standard-worker node YAMLs. Variables: `NODE_NAME`, `NODE_MAC`, `NODE_INSTALL_DISK`, `NODE_LAN_IP_CIDR`, `NODE_DRBD_IP_CIDR`, `NODE_NIC_DRIVER`, `NODE_GATEWAY`, `NODE_VLAN_INTERFACE`, `NODE_VLAN_PARENT`. The underscore prefix keeps the Makefile pattern-rule `worker/%.yaml` from interpreting it as a node target. CP / GPU / Pi nodes have different patch inheritance and must not be rendered with this template.
 
 ## Important Behaviors
 - Boot parameter changes require `talosctl upgrade` — `talosctl apply-config` only activates sysctls
@@ -95,5 +125,5 @@ Install image resolution: `factory.talos.dev/metal-installer/<SCHEMATIC_ID>:<TAL
 - `kubectl delete pod` on Talos static pods (control-plane components) only recreates the mirror pod — the real container keeps running. Use `talosctl service <name> restart` instead where supported.
 - `kube-apiserver` `$(POD_IP)` env var is frozen at container creation; survives kubelet restarts.
 - `talosctl service etcd restart` is NOT supported — etcd cannot be restarted via the Talos API; node reboot is the only path.
-- Maintenance mode (`--insecure`) only supports: `version`, `get disks`, `apply-config`.
+- Maintenance mode: `talosctl version --insecure` (top-level flag) and `talosctl get -i <resource-type>` (subcommand-level `-i` flag) for read-only probes — verified resource-types include `disks`, `links`. `apply-config --insecure` is the write path. The MCP server (`talos-mcp`) does not support maintenance mode; it requires `talosconfig` + TLS — CLI fallback only for fresh-node discovery (see `.claude/rules/talos-mcp-first.md`).
 - `talosctl disks` is deprecated — use `get disks`, `get systemdisk`, or `get discoveredvolumes` instead.

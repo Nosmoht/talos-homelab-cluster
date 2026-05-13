@@ -113,16 +113,9 @@ CLAUDE.md imports this file via `@AGENTS.md`. Both tools treat this section as c
 
 ## Cluster Overview
 
-Software versions pinned in `talos/versions.mk`. Full topology in `cluster.yaml` (gitignored — schema: `cluster.yaml.example`).
+Software versions pinned in `talos/versions.mk`. Full node inventory + cluster identity in `cluster.yaml` (committed). Per-node hardware details in `docs/hardware-analysis-<node>.md`. Per-node Talos MachineConfig in `talos/nodes/<node>.yaml`.
 
-**Codex CLI**: read `cluster.yaml` at session start — contains node IPs, hardware layout, network topology. Claude Code loads this on demand via skill references.
-
-| Role | Nodes | IPs | Hardware |
-|------|-------|-----|----------|
-| Control Plane | node-01..03 | 192.168.2.61-63 | Lenovo ThinkCentre M910q |
-| Workers | node-04..06 | 192.168.2.64-66 | M910q (04-05), M920q (06) |
-| GPU Worker | node-gpu-01 | 192.168.2.67 | Custom build, r8152 USB NIC |
-| Pi / WAN Edge | node-pi-01 | per `cluster.yaml` | Raspberry Pi 4B, arm64 — sole WAN entrypoint since 2026-04-17, taint-isolated |
+**Codex CLI**: read `cluster.yaml` at session start — contains node names, IPs, NICs, cluster VIPs, repo URL. Hardware/Talos details on demand.
 
 - API VIP: `192.168.2.60` · Gateway VIP: `192.168.2.70` · PodCIDR: `10.244.0.0/16`
 - Storage: LINSTOR/Piraeus CSI (DRBD, NVMe nodes via NFD label `feature.node.kubernetes.io/storage-nvme.present=true`)
@@ -211,6 +204,7 @@ Claude Code dispatches skills via `/skill-name` or intent matching (except Manua
 | audit NIC health | `.claude/skills/nic-health-audit/` | Manual-only, Refs (Phase-1a primitive) |
 | debug Cilium policy | `.claude/skills/cilium-policy-debug/` | Manual-only, Refs |
 | detect link flaps | `.claude/skills/link-flap-detector/` | Manual-only, Refs (Phase-1a primitive) |
+| discover maintenance node | `.claude/skills/discover-maintenance-node/` | Manual-only, Refs |
 | cluster health snapshot | `.claude/skills/cluster-health-snapshot/` | Manual-only |
 | execute Cilium upgrade | `.claude/skills/execute-cilium-upgrade/` | Manual-only |
 | execute Talos upgrade | `.claude/skills/execute-talos-upgrade/` | Manual-only |
@@ -218,6 +212,7 @@ Claude Code dispatches skills via `/skill-name` or intent matching (except Manua
 | linstor storage triage | `.claude/skills/linstor-storage-triage/` | Manual-only |
 | linstor volume repair | `.claude/skills/linstor-volume-repair/` | Manual-only, Refs |
 | onboard workload namespace | `.claude/skills/onboard-workload-namespace/` | Manual-only |
+| onboard worker node | `.claude/skills/onboard-worker-node/` | Manual-only, Refs |
 | optimize node kernel | `.claude/skills/optimize-node-kernel/` | Manual-only |
 | plan Cilium upgrade | `.claude/skills/plan-cilium-upgrade/` | High-privilege (Bash+Write+Agent), Refs |
 | plan Talos upgrade | `.claude/skills/plan-talos-upgrade/` | High-privilege (Bash+Write+Agent) |
