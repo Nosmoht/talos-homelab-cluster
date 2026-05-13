@@ -1,0 +1,31 @@
+# Vault Policy granting ESO in the cert-manager namespace read access
+# to its single secret path under kv/.
+# See docs/secrets-vault-paths.md for the path schema and inventory.
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: eso-cert-manager
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: eso-cert-manager
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: vault-policy
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  authentication:
+    path: kubernetes
+    role: vco-pki-admin
+    serviceAccount:
+      name: controller-manager
+  type: acl
+  policy: |
+    # KV v2 read paths use the `data/` prefix at the API level.
+    path "kv/data/clusters/homelab/cert-manager/google-cloud-dns" {
+      capabilities = ["read"]
+    }
+    path "kv/metadata/clusters/homelab/cert-manager/google-cloud-dns" {
+      capabilities = ["read"]
+    }

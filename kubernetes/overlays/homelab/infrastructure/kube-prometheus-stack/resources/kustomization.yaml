@@ -84,3 +84,4 @@ resources:
   - cnp-kube-state-metrics.yaml
   - cnp-prometheus-operator.yaml
   - cnp-node-exporter.yaml
+  - secret-store.yaml  # Phase A.2 — ESO SecretStore for kv/clusters/homelab/monitoring/* (shared with loki)

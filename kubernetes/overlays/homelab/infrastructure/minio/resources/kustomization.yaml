@@ -8,6 +8,7 @@ resources:
   - cnp-minio-operator.yaml
   - cnp-minio.yaml
   - servicemonitor-minio.yaml
+  - secret-store.yaml  # Phase A.2 — ESO SecretStore for kv/clusters/homelab/minio/*
 
 generatorOptions:
   disableNameSuffixHash: true
