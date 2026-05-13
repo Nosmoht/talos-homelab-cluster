@@ -1,0 +1,39 @@
+# Config App — wave 2. ESO policies + Vault PKI engines + KubernetesAuthRoles +
+# HTTPRoute + bootstrap Job. CRs validated by VCO's admission webhook
+# → PreSync hook required.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-config-operator-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: vault-config-operator-config
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: infrastructure
+  source:
+    repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+    targetRevision: main
+    path: kubernetes/overlays/homelab/infrastructure/vault-config-operator/resources
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

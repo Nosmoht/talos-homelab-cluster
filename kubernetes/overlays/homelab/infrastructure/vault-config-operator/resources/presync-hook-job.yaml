@@ -1,0 +1,49 @@
+# Wait for vault-config-operator deployment to be Available before applying
+# Vault PKI/Policy/Role CRs validated by its own admission webhook.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: presync-wait-webhook-vault-config-operator
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded,BeforeHookCreation
+  labels:
+    app.kubernetes.io/name: presync-wait-webhook-vault-config-operator
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: hook-job
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: presync-wait-webhook-vault-config-operator
+        app.kubernetes.io/instance: homelab
+        app.kubernetes.io/component: hook-job
+        app.kubernetes.io/part-of: homelab
+    spec:
+      serviceAccountName: presync-hook-vault-config-operator
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: wait
+          image: bitnami/kubectl:1.31
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          command:
+            - kubectl
+            - wait
+            - --for=condition=Available
+            - deployment/vault-config-operator
+            - --namespace=vault
+            - --timeout=180s

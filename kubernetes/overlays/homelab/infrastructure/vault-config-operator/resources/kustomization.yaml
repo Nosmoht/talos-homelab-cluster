@@ -26,3 +26,7 @@ resources:
   - eso-role-dex.yaml
   - eso-role-monitoring.yaml
   - eso-role-minio.yaml
+  # Phase C.3 — PreSync hook gating VCO CRs on the VCO deployment.
+  - presync-hook-sa.yaml
+  - presync-hook-role.yaml
+  - presync-hook-job.yaml
