@@ -1,0 +1,8 @@
+# Stage-3 input. NS `kyverno` managed by namespaces-psa.yaml; vendor ns
+# carries no provide.* labels → safe to skip.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/kyverno/_rendered/manifests.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/kyverno/_rendered/crds.yaml

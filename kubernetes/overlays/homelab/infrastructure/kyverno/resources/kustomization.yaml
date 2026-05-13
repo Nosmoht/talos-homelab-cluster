@@ -7,3 +7,8 @@ resources:
   - cnp-kyverno-cleanup-controller.yaml
   - cnp-kyverno-reports-controller.yaml
   - clusterpolicy-pi-reserved-daemonset-toleration.yaml
+  # Phase C.3 — PreSync hook gating ClusterPolicy CRs on Kyverno
+  # admission-controller webhook readiness.
+  - presync-hook-sa.yaml
+  - presync-hook-role.yaml
+  - presync-hook-job.yaml

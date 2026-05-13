@@ -1,0 +1,13 @@
+# Stage-3 input. NS `vault` is in namespaces-psa.yaml AND vendor ships
+# platform.io/provide.{monitoring-scrape,admission-webhook}. Include vendor ns.
+# vault-operator's _rendered-overlay/ already includes vault namespace.yaml —
+# dual-ownership inside the consumer repo is harmless (kustomize de-dupes by
+# (apiVersion, kind, name); both reference the same vendor file).
+# Phase D will reconcile via Sync Wave ordering (vault-config-operator -> -3).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/vault-config-operator/namespace.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/vault-config-operator/_rendered/manifests.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/vault-config-operator/_rendered/crds.yaml

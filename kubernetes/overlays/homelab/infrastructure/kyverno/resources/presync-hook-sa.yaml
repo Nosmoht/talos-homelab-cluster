@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: presync-hook-kyverno
+  namespace: kyverno
+  labels:
+    app.kubernetes.io/name: presync-hook-kyverno
+    app.kubernetes.io/instance: homelab
+    app.kubernetes.io/component: hook-sa
+    app.kubernetes.io/part-of: homelab
+    app.kubernetes.io/managed-by: argocd

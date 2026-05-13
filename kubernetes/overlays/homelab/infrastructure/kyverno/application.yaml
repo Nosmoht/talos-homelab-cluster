@@ -1,3 +1,4 @@
+# Controller App — wave 0.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,20 +14,12 @@ metadata:
     app.kubernetes.io/managed-by: argocd
 spec:
   project: infrastructure
-  sources:
-    - repoURL: https://kyverno.github.io/kyverno
-      chart: kyverno
-      targetRevision: 3.7.1
-      helm:
-        valueFiles:
-          - $base/kubernetes/base/infrastructure/kyverno/values.yaml
-    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
-      targetRevision: main
-      path: kubernetes/overlays/homelab/infrastructure/kyverno/resources
-      ref: cluster
-    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
-      targetRevision: v0.1.0
-      ref: base
+  source:
+    repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+    targetRevision: main
+    path: kubernetes/overlays/homelab/infrastructure/kyverno/_rendered
+    directory:
+      include: 'manifests.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
@@ -34,13 +27,24 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=false
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
         maxDuration: 3m
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-      - SkipDryRunOnMissingResource=true
+  ignoreDifferences:
+    # Kyverno reconciles its own ValidatingWebhookConfiguration/
+    # MutatingWebhookConfiguration objects at runtime (cert rotation).
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
