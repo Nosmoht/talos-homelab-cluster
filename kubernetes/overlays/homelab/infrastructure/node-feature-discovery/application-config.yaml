@@ -1,16 +1,15 @@
-# Controller App — wave 0. Reads _rendered/manifests.yaml. No CRDs ship
-# with this chart, so no -crds App. No resources/ overlay → no -config App.
+# Config App — wave 2. Reads resources/ (NodeFeatureRule CR).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: nvidia-dcgm-exporter
+  name: node-feature-discovery-config
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
   labels:
-    app.kubernetes.io/name: nvidia-dcgm-exporter
+    app.kubernetes.io/name: node-feature-discovery-config
     app.kubernetes.io/instance: homelab
-    app.kubernetes.io/component: application
+    app.kubernetes.io/component: config
     app.kubernetes.io/part-of: homelab
     app.kubernetes.io/managed-by: argocd
 spec:
@@ -18,10 +17,10 @@ spec:
   source:
     repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
     targetRevision: main
-    path: kubernetes/overlays/homelab/infrastructure/nvidia-dcgm-exporter/_rendered
+    path: kubernetes/overlays/homelab/infrastructure/node-feature-discovery/resources
   destination:
     server: https://kubernetes.default.svc
-    namespace: nvidia-dcgm-exporter
+    namespace: node-feature-discovery
   syncPolicy:
     automated:
       prune: true

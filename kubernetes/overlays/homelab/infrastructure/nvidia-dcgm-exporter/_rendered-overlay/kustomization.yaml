@@ -1,0 +1,9 @@
+# Stage-3 input. See cert-manager/_rendered-overlay/kustomization.yaml
+# for the pattern. Path traversal `..` x6 needs
+# --load-restrictor=LoadRestrictionsNone.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/nvidia-dcgm-exporter/namespace.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/nvidia-dcgm-exporter/_rendered/manifests.yaml

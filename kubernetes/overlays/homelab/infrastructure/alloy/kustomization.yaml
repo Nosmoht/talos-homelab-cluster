@@ -1,5 +1,9 @@
+# Top-level overlay entry — consumed by App-of-Apps. Emits 3 Apps for the
+# rendered-manifests pattern. See cert-manager/ for the canonical example.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - application-crds.yaml
   - application.yaml
+  - application-config.yaml

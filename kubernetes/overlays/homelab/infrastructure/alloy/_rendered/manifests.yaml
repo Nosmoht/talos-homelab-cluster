@@ -1,0 +1,426 @@
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+rules:
+  - apiGroups:
+      - ""
+      - discovery.k8s.io
+      - networking.k8s.io
+    resources:
+      - endpoints
+      - endpointslices
+      - ingresses
+      - pods
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/log
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - monitoring.grafana.com
+    resources:
+      - podlogs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - prometheusrules
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - alertmanagerconfigs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - podmonitors
+      - servicemonitors
+      - probes
+      - scrapeconfigs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+      - extensions
+    resources:
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/metrics
+    verbs:
+      - get
+      - list
+      - watch
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy
+subjects:
+  - kind: ServiceAccount
+    name: alloy
+    namespace: monitoring
+---
+apiVersion: v1
+data:
+  config.alloy: |-
+    local.file_match "pods" {
+      path_targets = [
+        {"__path__" = "/var/log/pods/*/*/*.log"},
+      ]
+    }
+
+    local.file_match "cilium_hubble" {
+      path_targets = [
+        {
+          "__path__" = "/var/log/pods/kube-system_cilium-*/cilium-agent/*.log",
+          "job" = "cilium-hubble",
+        },
+      ]
+    }
+
+    loki.process "pods" {
+      stage.cri {}
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.process "cilium_hubble" {
+      stage.cri {}
+
+      stage.json {
+        expressions = {
+          source_ip = "flow.IP.source",
+          destination_ip = "flow.IP.destination",
+          source_namespace = "flow.source.namespace",
+          destination_namespace = "flow.destination.namespace",
+          verdict = "flow.verdict",
+          traffic_direction = "flow.traffic_direction",
+          destination_port_tcp = "flow.l4.TCP.destination_port",
+          destination_port_udp = "flow.l4.UDP.destination_port",
+          http_method = "flow.l7.http.method",
+          http_url = "flow.l7.http.url",
+          dns_query = "flow.l7.dns.query",
+        }
+        drop_malformed = true
+      }
+
+      stage.drop {
+        source = "source_ip"
+        expression = "^$"
+      }
+
+      stage.geoip {
+        source = "source_ip"
+        db = "/var/lib/alloy/geoip/GeoIP.mmdb"
+        db_type = "country"
+      }
+
+      stage.labels {
+        values = {
+          job = "job",
+          verdict = "verdict",
+          traffic_direction = "traffic_direction",
+          source_namespace = "source_namespace",
+          destination_namespace = "destination_namespace",
+          geoip_country_code = "geoip_country_code",
+          geoip_country_name = "geoip_country_name",
+        }
+      }
+
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.source.file "pods" {
+      targets    = local.file_match.pods.targets
+      forward_to = [loki.process.pods.receiver]
+    }
+
+    loki.source.file "cilium_hubble" {
+      targets    = local.file_match.cilium_hubble.targets
+      forward_to = [loki.process.cilium_hubble.receiver]
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = "http://loki-gateway.monitoring.svc/loki/api/v1/push"
+      }
+      external_labels = {}
+    }
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: config
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+  namespace: monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: networking
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+  namespace: monitoring
+spec:
+  internalTrafficPolicy: Cluster
+  ports:
+    - name: http-metrics
+      port: 12345
+      protocol: TCP
+      targetPort: 12345
+  selector:
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/name: alloy
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+  namespace: monitoring
+spec:
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: alloy
+      app.kubernetes.io/name: alloy
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: alloy
+      labels:
+        app.kubernetes.io/instance: alloy
+        app.kubernetes.io/name: alloy
+    spec:
+      containers:
+        - args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --server.http.ui-path-prefix=/
+            - --stability.level=generally-available
+            - --disable-reporting
+          env:
+            - name: ALLOY_DEPLOY_MODE
+              value: helm
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          image: docker.io/grafana/alloy:v1.13.0
+          imagePullPolicy: IfNotPresent
+          name: alloy
+          ports:
+            - containerPort: 12345
+              name: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 12345
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /etc/alloy
+              name: config
+            - mountPath: /var/log
+              name: varlog
+              readOnly: true
+            - mountPath: /var/lib/alloy/geoip
+              name: geoip-db
+              readOnly: true
+        - args:
+            - --watched-dir=/etc/alloy
+            - --reload-url=http://localhost:12345/-/reload
+          image: quay.io/prometheus-operator/prometheus-config-reloader:v0.81.0
+          name: config-reloader
+          resources:
+            requests:
+              cpu: 10m
+              memory: 50Mi
+          volumeMounts:
+            - mountPath: /etc/alloy
+              name: config
+      dnsPolicy: ClusterFirst
+      initContainers:
+        - args:
+            - |
+              set -euo pipefail
+              month="$(date +%Y-%m)"
+              url="https://download.db-ip.com/free/dbip-country-lite-${month}.mmdb.gz"
+              curl -fsSL "$url" -o /geoip/dbip-country.mmdb.gz
+              gunzip -f /geoip/dbip-country.mmdb.gz
+              mv /geoip/dbip-country.mmdb /geoip/GeoIP.mmdb
+          command:
+            - /bin/sh
+            - -ec
+          image: curlimages/curl:8.12.1
+          imagePullPolicy: IfNotPresent
+          name: geoip-db
+          volumeMounts:
+            - mountPath: /geoip
+              name: geoip-db
+      serviceAccountName: alloy
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Equal
+          value: present
+      volumes:
+        - configMap:
+            name: alloy
+          name: config
+        - hostPath:
+            path: /var/log
+          name: varlog
+        - emptyDir: {}
+          name: geoip-db
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+  namespace: monitoring
+spec:
+  endpoints:
+    - honorLabels: true
+      port: http-metrics
+      scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: alloy
+      app.kubernetes.io/name: alloy
