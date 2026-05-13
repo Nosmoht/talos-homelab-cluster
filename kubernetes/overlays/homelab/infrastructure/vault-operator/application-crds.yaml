@@ -1,15 +1,15 @@
-# Controller App — wave 0.
+# CRDs App — wave -5.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault-operator
+  name: vault-operator-crds
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "-5"
   labels:
-    app.kubernetes.io/name: vault-operator
+    app.kubernetes.io/name: vault-operator-crds
     app.kubernetes.io/instance: homelab
-    app.kubernetes.io/component: application
+    app.kubernetes.io/component: crds
     app.kubernetes.io/part-of: homelab
     app.kubernetes.io/managed-by: argocd
 spec:
@@ -19,18 +19,19 @@ spec:
     targetRevision: main
     path: kubernetes/overlays/homelab/infrastructure/vault-operator/_rendered
     directory:
-      include: 'manifests.yaml'
+      include: 'crds.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
   syncPolicy:
     automated:
-      prune: true
+      prune: false
       selfHeal: true
     syncOptions:
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true
+      - Replace=false
       - CreateNamespace=false
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

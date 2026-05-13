@@ -1,6 +1,7 @@
+# Top-level overlay entry — consumed by App-of-Apps.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../../../base/infrastructure/external-secrets
+  - application-crds.yaml
   - application.yaml

@@ -1,0 +1,9 @@
+# Stage-3 input. NS `external-secrets` NOT in namespaces-psa.yaml — component
+# owns it. Vendor namespace.yaml ships platform.io/provide.monitoring-scrape.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/external-secrets/namespace.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/external-secrets/_rendered/manifests.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/external-secrets/_rendered/crds.yaml
