@@ -1,10 +1,11 @@
+# Controller App — wave 0. No CRDs ship with the dex chart.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: dex
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/name: dex
     app.kubernetes.io/instance: homelab
@@ -13,21 +14,10 @@ metadata:
     app.kubernetes.io/managed-by: argocd
 spec:
   project: infrastructure
-  sources:
-    - repoURL: https://charts.dexidp.io
-      chart: dex
-      targetRevision: 0.24.0
-      helm:
-        valueFiles:
-          - $base/kubernetes/base/infrastructure/dex/values.yaml
-          - $cluster/kubernetes/overlays/homelab/infrastructure/dex/values.yaml
-    - repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
-      targetRevision: main
-      path: kubernetes/overlays/homelab/infrastructure/dex/resources
-      ref: cluster
-    - repoURL: https://github.com/Nosmoht/talos-platform-base.git
-      targetRevision: v0.1.0
-      ref: base
+  source:
+    repoURL: https://github.com/Nosmoht/talos-homelab-cluster.git
+    targetRevision: main
+    path: kubernetes/overlays/homelab/infrastructure/dex/_rendered
   destination:
     server: https://kubernetes.default.svc
     namespace: dex
@@ -35,13 +25,13 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=false
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
         maxDuration: 3m
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-      - SkipDryRunOnMissingResource=true

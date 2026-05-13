@@ -1,0 +1,6 @@
+# Stage-3 input. NS `tetragon` managed by namespaces-psa.yaml → skip vendor ns.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/tetragon/_rendered/manifests.yaml
