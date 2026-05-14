@@ -184,6 +184,7 @@ Claude Code auto-loads each rule via `paths:` frontmatter. **Codex CLI**: scan t
 | LINSTOR/Piraeus/DRBD storage changes | `.claude/rules/linstor-storage-guardrails.md` |
 | MinIO tenant/operator changes, S3 backend proposals | `.claude/rules/minio-exit.md` |
 | Manifest quality (labels, naming conventions) | `.claude/rules/manifest-quality.md` |
+| Kyverno ClusterPolicy / Policy authoring (`allowExistingViolations` ratchet; operator-signature tamper-profile verification) | `.claude/rules/kyverno-policy-authoring.md` |
 | Prometheus, Grafana, kube-prometheus-stack | `.claude/rules/monitoring-observability.md` |
 | Glob/Grep search scope | `.claude/rules/search-scope.md` |
 | Talos machine config / patches / lifecycle / API behaviour / node recovery | `.claude/rules/talos-config.md` |
@@ -218,6 +219,7 @@ Claude Code dispatches skills via `/skill-name` or intent matching (except Manua
 | plan Talos upgrade | `.claude/skills/plan-talos-upgrade/` | High-privilege (Bash+Write+Agent) |
 | PNI capability add | `.claude/skills/pni-capability-add/` | Manual-only |
 | argocd app unstick | `.claude/skills/argocd-app-unstick/` | Manual-only |
+| argocd controller backoff escape | `.claude/skills/argocd-controller-backoff-escape/` | Manual-only (force-reconcile stuck child workload after upstream cause fixed) |
 | etcd snapshot restore | `.claude/skills/etcd-snapshot-restore/` | Manual-only |
 | hubble cert rotate | `.claude/skills/hubble-cert-rotate/` | Manual-only |
 | sops key rotate | `.claude/skills/sops-key-rotate/` | Manual-only |
