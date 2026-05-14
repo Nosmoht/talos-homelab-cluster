@@ -10,7 +10,7 @@ metadata:
   namespace: cert-manager
   annotations:
     argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded,BeforeHookCreation
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded,HookFailed
   labels:
     app.kubernetes.io/name: presync-wait-webhook-cert-manager
     app.kubernetes.io/instance: homelab
