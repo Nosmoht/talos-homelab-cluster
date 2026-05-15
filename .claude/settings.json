@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "kube-agent-harness@kube-agent-harness": true,
+    "kube-agent-harness-gitops-argocd@kube-agent-harness": true,
+    "kube-agent-harness-csi-linstor@kube-agent-harness": true
+  }
+}

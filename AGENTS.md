@@ -117,6 +117,8 @@ Software versions pinned in `talos/versions.mk`. Full node inventory + cluster i
 
 **Codex CLI**: read `cluster.yaml` at session start — contains node names, IPs, NICs, cluster VIPs, repo URL. Hardware/Talos details on demand.
 
+**Plugin contract `.claude/harness.yaml`**: companion file consumed by skills shipped from the `devobagmbh/kube-agent-harness` Claude Code plugin family. Declares which capability providers (gitops, csi) this repo opts into. `cluster.yaml` remains SOT for cluster identity (gitignored, per-developer); only `cluster.overlayPath` is duplicated into `harness.yaml` for plugin consumption. Drift between the two is guarded by `make harness-check` (also wired into pre-commit). `KUBECONFIG` is taken from the shell env var, not duplicated.
+
 - API VIP: `192.168.2.60` · Gateway VIP: `192.168.2.70` · PodCIDR: `10.244.0.0/16`
 - Storage: LINSTOR/Piraeus CSI (DRBD, NVMe nodes via NFD label `feature.node.kubernetes.io/storage-nvme.present=true`)
 - Networking: Cilium WireGuard strict mode · Gateway API (hostNetwork Envoy) · WAN via `pi-public-ingress` on `node-pi-01` (hostNetwork nginx stream, since 2026-04-17) · LAN via macvlan `ingress-front` (internal VIP for `*.homelab.local` / `*.lan.homelab.ntbc.io`)
@@ -167,6 +169,8 @@ Enforcement layers that apply regardless of which AI tool is used:
 
 **Codex CLI note**: No PreToolUse hooks fire under Codex. SOPS protection begins at `git commit` via pre-commit framework. Run `make install-pre-commit` after cloning.
 
+**Hook source**: Under Claude Code, the active PreToolUse matchers (`check-sops.sh`, `check-sops-bash.sh`, `pre-push-verify.sh`, `require-plan-review.sh`, `require-probe-evidence.sh`, `validate-gitops.sh`, `pre-drain-check.sh`) are registered by the `devobagmbh/kube-agent-harness` plugin family — see §"MCP Server Configuration" for marketplace install. The matching `.claude/hooks/*.sh` files in this repo are inert under Claude Code (no `settings.local.json` registration); they exist as Codex CLI fallback and are wired in via the pre-commit framework + manual invocation. **Do not add `"hooks"` registrations to `.claude/settings.local.json`** — they would double-fire alongside the plugin matchers.
+
 ## Domain Rules — On-Demand Reference
 
 Claude Code auto-loads each rule via `paths:` frontmatter. **Codex CLI**: scan this table before editing files in the listed context and read the rule file with the Read tool.
@@ -209,16 +213,12 @@ Claude Code dispatches skills via `/skill-name` or intent matching (except Manua
 | cluster health snapshot | `.claude/skills/cluster-health-snapshot/` | Manual-only |
 | execute Cilium upgrade | `.claude/skills/execute-cilium-upgrade/` | Manual-only |
 | execute Talos upgrade | `.claude/skills/execute-talos-upgrade/` | Manual-only |
-| gitops health triage | `.claude/skills/gitops-health-triage/` | Manual-only, Refs |
-| linstor storage triage | `.claude/skills/linstor-storage-triage/` | Manual-only |
-| linstor volume repair | `.claude/skills/linstor-volume-repair/` | Manual-only, Refs |
 | onboard workload namespace | `.claude/skills/onboard-workload-namespace/` | Manual-only |
 | onboard worker node | `.claude/skills/onboard-worker-node/` | Manual-only, Refs |
 | optimize node kernel | `.claude/skills/optimize-node-kernel/` | Manual-only |
 | plan Cilium upgrade | `.claude/skills/plan-cilium-upgrade/` | High-privilege (Bash+Write+Agent), Refs |
 | plan Talos upgrade | `.claude/skills/plan-talos-upgrade/` | High-privilege (Bash+Write+Agent) |
 | PNI capability add | `.claude/skills/pni-capability-add/` | Manual-only |
-| argocd app unstick | `.claude/skills/argocd-app-unstick/` | Manual-only |
 | argocd controller backoff escape | `.claude/skills/argocd-controller-backoff-escape/` | Manual-only (force-reconcile stuck child workload after upstream cause fixed) |
 | etcd snapshot restore | `.claude/skills/etcd-snapshot-restore/` | Manual-only |
 | hubble cert rotate | `.claude/skills/hubble-cert-rotate/` | Manual-only |
@@ -228,10 +228,31 @@ Claude Code dispatches skills via `/skill-name` or intent matching (except Manua
 | talos node maintenance | `.claude/skills/talos-node-maintenance/` | Manual-only, Refs |
 | talos upgrade | `.claude/skills/talos-upgrade/` | Manual-only |
 | update schematics | `.claude/skills/update-schematics/` | Manual-only |
-| validate gitops | `.claude/skills/validate-gitops/` | Manual-only |
-| verify component deployment | `.claude/skills/verify-component-deployment/` | Manual-only |
 
 **Manual-only**: `disable-model-invocation: true` — only runnable via `/skill-name`, never auto-dispatched. **High-privilege**: has Bash+Write+Agent tools — confirm each destructive step under Codex (no runtime `allowed-tools` enforcement).
+
+### Plugin-provided skills (kube-agent-harness v0.2)
+
+These skills are *not* in `.claude/skills/`. They ship from the `devobagmbh/kube-agent-harness` plugin family and are namespaced under `/kube-agent-harness:*`, `/kube-agent-harness-gitops-argocd:*`, `/kube-agent-harness-csi-linstor:*`.
+
+| Trigger phrase | Plugin command | Source |
+|---|---|---|
+| verify component deployment | `/kube-agent-harness:verify-component-deployment` | core |
+| argocd app unstick | `/kube-agent-harness-gitops-argocd:argocd-app-unstick` | gitops-argocd provider |
+| gitops health triage | `/kube-agent-harness-gitops-argocd:gitops-health-triage` | gitops-argocd provider |
+| validate gitops | `/kube-agent-harness-gitops-argocd:validate-gitops` | gitops-argocd provider |
+| linstor storage triage | `/kube-agent-harness-csi-linstor:linstor-storage-triage` | csi-linstor provider |
+| linstor volume repair | `/kube-agent-harness-csi-linstor:linstor-volume-repair` | csi-linstor provider |
+
+**Setup for new contributors / fresh clones** (one-time):
+
+```bash
+claude plugin marketplace add devobagmbh/kube-agent-harness
+```
+
+The `enabledPlugins` entries in `.claude/settings.json` then auto-install the three plugins on first session. Requires read access to the `devobagmbh` GitHub org.
+
+**Codex CLI users**: the 6 plugin-shipped skills are not available — Codex has no plugin runtime. Read the SKILL.md sources at `~/.claude/plugins/cache/<marketplace>/...` if procedure is needed manually.
 
 ## MCP Server Configuration
 
@@ -307,6 +328,8 @@ These differences are permanent by design. They are documented here, not hidden.
 
 1. **No PreToolUse interception**: SOPS protection fires at `git commit` (pre-commit framework), not during editing. Plaintext in `*.sops.yaml` during the session is not blocked — only caught before commit. Run `make install-pre-commit` after cloning.
 2. **No auto-subagent dispatch**: `platform-reliability-reviewer`, `talos-sre`, `gitops-operator`, `researcher`, `builder-implementer`, `builder-evaluator` run only on explicit request. For pre-merge review, ask: *"Run platform-reliability-reviewer on this diff."* The builder-implementer / builder-evaluator subagents have no Codex CLI equivalent — Codex falls back to inline implementation with reduced Anthropic-Principle-1 guarantee (logged warning); see `docs/issue-workflow.md` §Codex CLI compatibility.
+
+   Under Claude Code, five of these agents (`builder-evaluator`, `builder-implementer`, `platform-reliability-reviewer`, `researcher`, `gitops-operator`) are shipped by the `devobagmbh/kube-agent-harness` plugin family. Only `talos-sre` lives in `.claude/agents/` of this repo. Codex CLI sees none of them — Codex falls back to inline invocation patterns.
 3. **No automatic `cluster.yaml` load**: Read this file explicitly at session start for cluster topology.
 4. **No `paths:` rule auto-loading**: See §Domain Rules above — scan the table before editing files in a listed context and read the rule with the Read tool.
 5. **`--no-verify` bypass is possible locally**: Required PR checks (`gitleaks` CLI in `gitops-validate.yml`, `hard-constraints-check`) block merge server-side. Local hooks are defense-in-depth, not the last line.

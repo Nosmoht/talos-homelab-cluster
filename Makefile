@@ -1,4 +1,4 @@
-.PHONY: argocd-install argocd-bootstrap argocd-password argocd-oidc grafana-dashboards-check validate-gitops validate-kyverno-policies install-pre-commit mcp-install mcp-verify mcp-uninstall migrate-cluster-yaml verify-tools pull-base-oci render-consumer render-consumer-all verify-consumer-rendered .argocd-bootstrap-render
+.PHONY: argocd-install argocd-bootstrap argocd-password argocd-oidc grafana-dashboards-check validate-gitops validate-kyverno-policies install-pre-commit mcp-install mcp-verify mcp-uninstall migrate-cluster-yaml verify-tools pull-base-oci render-consumer render-consumer-all verify-consumer-rendered harness-check .argocd-bootstrap-render
 
 ENV ?= cluster.yaml
 
@@ -90,6 +90,20 @@ validate-gitops:
 		kubeconform -strict -ignore-missing-schemas "$$f"; \
 	done
 	./scripts/run_trivy.sh
+
+harness-check: ## Verify .claude/harness.yaml stays in sync with cluster.yaml
+	@# kube-agent-harness plugins read .claude/harness.yaml. The only field this repo
+	@# duplicates from cluster.yaml is the overlay path — kubeconfig falls back to
+	@# the $$KUBECONFIG env var so it is not duplicated.
+	@expected="kubernetes/overlays/$$(yq '.cluster.overlay' $(ENV))"; \
+	actual="$$(yq '.cluster.overlayPath' .claude/harness.yaml)"; \
+	if [ "$$expected" != "$$actual" ]; then \
+		echo "ERROR: overlay path drift between $(ENV) and .claude/harness.yaml"; \
+		echo "  $(ENV) → cluster.overlay: $$expected"; \
+		echo "  .claude/harness.yaml → cluster.overlayPath: $$actual"; \
+		exit 1; \
+	fi
+	@echo "harness.yaml ↔ $(ENV): in sync"
 
 # Consumer Render Pipeline (Phase C of OCI base migration).
 # Pulls the talos-platform-base OCI artifact into vendor/base/, then

@@ -26,6 +26,15 @@ repos:
         files: '^(\.mcp\.json|\.codex/config\.toml)$'
         pass_filenames: false
 
+      - id: harness-check
+        name: kube-agent-harness plugin contract (.claude/harness.yaml ↔ cluster.yaml)
+        entry: make harness-check
+        language: system
+        # cluster.yaml is gitignored, so this hook only fires on harness.yaml edits.
+        # Catches drift introduced by isolated changes to the plugin contract.
+        files: '^\.claude/harness\.yaml$'
+        pass_filenames: false
+
       - id: trivy-config
         name: Trivy config scan (HIGH/CRITICAL) — wraps scripts/run_trivy.sh
         entry: sh scripts/run_trivy.sh
