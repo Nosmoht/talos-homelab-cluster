@@ -4,6 +4,10 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: argocd
     app.kubernetes.io/name: vault
+    platform.io/consume.controlplane-egress: "true"
+    platform.io/consume.gateway-backend: "true"
+    platform.io/consume.monitoring-scrape: "true"
+    platform.io/consume.vault-secrets: "true"
     platform.io/network-interface-version: v1
     platform.io/network-profile: managed
     platform.io/provide.admission-webhook: "true"

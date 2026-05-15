@@ -9,3 +9,40 @@ resources:
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/vault-operator/namespace.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/vault-operator/_rendered/manifests.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/vault-operator/_rendered/crds.yaml
+
+# Temporary overlay-level patch: add consumer capability labels to the
+# vault namespace. The vendored platform-base v0.1.0 namespace.yaml ships
+# only the producer (provide.*) labels; the homelab vault-operator pod
+# needs consume.controlplane-egress to be selected by CCNP
+# pni-controlplane-egress-consumer-egress (which guards egress to
+# kube-apiserver). Without this NS label, the CCNP endpointSelector does
+# not match, and vault-operator's leader-election + Vault CR reconciles
+# fail with "Client.Timeout exceeded" to 10.96.0.1:443.
+#
+# namespaces-psa.yaml in the homelab overlay already declares these
+# labels for vault, but the vault-operator App's tracking-id pins NS
+# ownership here, so any label not present in the rendered output is
+# pruned. This patch makes the four consumer labels declared by
+# namespaces-psa.yaml authoritative within the vault-operator render
+# path.
+#
+# Remove once talos-platform-base v0.1.1+ ships these labels in its
+# vendor namespace.yaml (cert-manager + external-secrets already do).
+patches:
+  - target:
+      version: v1
+      kind: Namespace
+      name: vault
+    patch: |-
+      - op: add
+        path: /metadata/labels/platform.io~1consume.controlplane-egress
+        value: "true"
+      - op: add
+        path: /metadata/labels/platform.io~1consume.monitoring-scrape
+        value: "true"
+      - op: add
+        path: /metadata/labels/platform.io~1consume.gateway-backend
+        value: "true"
+      - op: add
+        path: /metadata/labels/platform.io~1consume.vault-secrets
+        value: "true"
