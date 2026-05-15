@@ -458,3 +458,81 @@ R4 is the hard cap per CLAUDE.md §Review Rigor. Submitted for final
 adversarial pre-mortem. Expectation: zero new material CRITICAL/HIGH
 findings → GO. If R4 produces ≥1 material new finding, escalate to user
 for explicit risk-accept-and-execute decision.
+
+---
+
+## Post-execution outcome (added 2026-05-15)
+
+The plan above was executed but the recovery surfaced **five additional
+defects** not modelled in v4. Final defect-tally is **10**, not the
+4-5 enumerated in Phases 0-11 above. This section documents the
+delta — read it INSTEAD OF the plan when reasoning about the actual
+recovery sequence.
+
+### Final defect cascade (10 defects)
+
+| # | Defect | Discovered in | Remediation | Reference |
+|---|---|---|---|---|
+| 1 | ESO `external-secrets.io/v1beta1` unserved (cert-manager-config sync wedged) | Phase 0.4 (pre-recovery probe) | Update CRDs to `v1` in `external-secret-google-cloud-dns.yaml` + `secret-store.yaml` | PR #13 |
+| 2 | PreSync hook `hook-delete-policy: HookSucceeded,BeforeHookCreation` race with NS prune | Phase 5.3 (pre-recovery commit) | Drop `BeforeHookCreation` → `HookSucceeded,HookFailed` in `cert-manager/resources/presync-hook-job.yaml` | PR #13 |
+| 3 | `argocd.argoproj.io/hook-finalizer` on dead Job blocked NS Termination | Phase 6 (during recovery) | Ad-hoc `kubectl patch job ... '[{"op":"remove","path":"/metadata/finalizers"}]'` | ad-hoc (Phase 6 in plan) |
+| 4 | ArgoCD `.operation` field locks revision; `refresh=hard` does not terminate in-flight op | Phase 7b (during recovery, AFTER plan executed) | Ad-hoc `kubectl patch app ... '[{"op":"remove","path":"/operation"}]'` then `refresh=hard` | ad-hoc + issue #25 |
+| 5 | Kyverno `pni-reserved-labels-audit` trust-signature gap denies cert-manager Pod admission | Phase 7a (mid-recovery — NS recreated, pods denied) | Strip `platform.io/capability-provider.*` labels from `cert-manager` + `cert-manager-webhook` rendered Deployments via Kustomize JSON patches in `_rendered-overlay/kustomization.yaml` | PR #15 |
+| 6 | PreSync hook SA/RBAC in Sync-phase (chicken-and-egg with hook Job referencing SA) | Phase 7b (Job stuck `0/1`, SA missing) | Ad-hoc `kubectl apply -f resources/presync-hook-{sa,role}.yaml`. Permanent fix tracked. | ad-hoc + issue #22 |
+| 7 | `bitnami/kubectl:1.31` removed from Docker Hub (Bitnami Aug 2025 catalog purge) | Phase 7b (PreSync hook Pod `ImagePullBackOff`) | Migrate all 4 PreSync hook Jobs to `bitnamilegacy/kubectl:1.31` | PR #16 |
+| 8 | Kyverno `pni-reserved-labels-audit` (same as #5) denies external-secrets Pod admission | Phase 7b (after #1-#7 fixed, ESO webhook unreachable) | Strip `platform.io/capability-provider.monitoring-scrape` from 3 ESO Deployments via `_rendered-overlay` patches | PR #17 |
+| 9 | Kyverno `pni-reserved-labels-audit` (same as #5/#8) denies vault Pod admission. StatefulSet stuck `1/3`, Raft quorum lost | Phase 9 verification (vault-internal ClusterIssuer Not Ready) | Remove `platform.io/capability-provider.monitoring-scrape` from `vaultLabels` in Vault CR | PR #18 |
+| 10 | Vendor `vault-operator/namespace.yaml` missing `consume.controlplane-egress` label → CCNP doesn't match vault-operator pod → kube-apiserver unreachable (212 restarts) | Phase 9 verification (vault-operator `Client.Timeout` on every reconcile) | Add 4 `consume.*` labels to vault NS via Kustomize patches | PR #20 |
+
+### Defect classes (3 share a root cause)
+
+- **#5, #8, #9 — Kyverno trust-signature allowlist gap**: A single `pni-reserved-labels-audit` ClusterPolicy enforced a 2-operator allowlist (RabbitMQ + Redis-Operator) but three additional cluster operators (cert-manager, external-secrets, vault) ship `capability-provider.*` labels. Pre-incident the policy used `allowExistingViolations=true`, grandfathering existing Pods. The NS-Terminating cascade forced Pod recreation, evaluating the policy fresh, exposing the gap cluster-wide. Permanent fix tracked in issue #21.
+
+- **#6 — PreSync hook SA/RBAC ordering**: 4 sibling Apps (cert-manager, kube-prometheus-stack, kyverno, vault-config-operator) ship PreSync hook Jobs that reference a ServiceAccount declared in Sync-phase. Pre-incident the SAs were grandfathered; post-NS-recreate the SA didn't exist when the Job ran. Permanent fix tracked in issue #22.
+
+- **#7 — Bitnami legacy catalog migration**: Frozen registry, no security patches, "may be removed anytime" per upstream deprecation. Long-term migration to maintained image tracked in issue #23.
+
+### Mid-recovery emergent symptoms (no separate defects)
+
+- **vault-config-operator-config sync stuck on PreSync Job after cluster recovery** — chicken-and-egg #6 hit a second time. Same ad-hoc fix.
+- **3 dependent Certificates stuck `Issuing`** (argocd-server, vault-pki-canary, vault-pki-canary-atlas-svc): not defects, downstream of #9/#10 (vault-internal ClusterIssuer Not Ready until vault Raft recovered).
+- **Pre-existing config bugs surfaced** (NOT recovery-caused): PKISecretEngineRole `cert-manager-internal.allowedDomains` missing `argocd.lan.homelab.ntbc.io` → argocd-server cert can't issue (issue #27). SecretStore `caProvider.type: ConfigMap` references missing CM (issue #28).
+
+### Final PR sequence (chronological)
+
+| PR | Title | Defects addressed |
+|---|---|---|
+| #13 | fix(cert-manager): unblock NS Terminating deadlock + ESO v1beta1->v1 | #1, #2 + plan v4 Phases 5/6 |
+| #14 | (merge: harness restore — unrelated) | — |
+| #15 | fix(cert-manager): strip platform.io/capability-provider labels from rendered Deployments | #5 |
+| #16 | fix(presync-hooks): migrate kubectl image to bitnamilegacy after Bitnami deprecation | #7 (4 Apps) |
+| #17 | fix(external-secrets): strip platform.io/capability-provider labels from rendered Deployments | #8 |
+| #18 | fix(vault): remove platform.io/capability-provider label from vault CR | #9 |
+| #19 | (merge: kube-agent-harness consume — unrelated) | — |
+| #20 | fix(vault): add consumer capability labels to vault namespace | #10 |
+
+Ad-hoc patches (not in any PR): #3 (Job finalizer strip), #4 (`/operation` patch), #6 (`kubectl apply -f` of SA+RBAC, twice).
+
+### Follow-up issues created during post-mortem
+
+Tracking via #21 (Kyverno trust-signature gap), #22 (PreSync SA annotations), #23 (bitnami long-term), #24 (talos-platform-base vault NS labels upstream), #25 (ArgoCD stale-revision doc), #26 (3 remaining `BeforeHookCreation` Jobs), #27 (PKI allowedDomains), #28 (SecretStore type), #29 (gitignore `.claude/settings.local.json`), #31 (skill review medium/low).
+
+### What the plan got right vs got wrong
+
+**Right:**
+- Phases 0-7a executed cleanly with the predicted state transitions.
+- The `BeforeHookCreation` race (Defect #2) was caught pre-execution via plan v2.
+- Webhook `failurePolicy: Ignore` workaround (Phase 2) successfully unblocked cluster while NS was Terminating.
+- R3 simplification of Phase 3 (drop 3a/3b, keep 3c only) was correct — ClusterIssuers were already terminating.
+
+**Wrong:**
+- **Phase 7b underestimated**: assumed sync would complete once Phase 7a finished. Actually surfaced defects #4, #5, #6, #7, #8 in sequence. Each required separate diagnose + fix + merge cycles.
+- **Phase 9 + 10 conflated**: plan treated Vault recovery as "verify ACME survival + resume vault-operator-config". Actually Vault required #9 (capability-provider label strip) + #10 (NS consume labels) before ANY config could be reconciled.
+- **No model for "Kyverno trust-signature gap" as a defect class**: plan treated this as a one-off for cert-manager. The cascade hit ESO and vault identically — should have been generalized after #5.
+- **Resume contract missing**: the parent skill (`onboard-worker-node`) had no checkpoint, so the original node-07 onboarding lost its `talos/nodes/node-07.yaml` artifact when the cert-manager incident interrupted P7. Tracked in skill rewrite PR #32.
+
+### Lessons for future incident plans
+
+- **Multi-app symptoms hint at single-policy root cause**: when 3 apps fail with same symptom shape, the diagnosis must climb to the cluster-wide policy layer before fixing in each app. Cost in this incident: defects #5, #8, #9 were diagnosed sequentially (~30min each) when one cluster-wide search would have found them in 5min.
+- **Pre-existing config bugs surface during recovery, not separately**: argocd-server cert + SecretStore type were inert until cert-issuance was triggered fresh. Recovery is the time to also enumerate dependent-on-vault resources.
+- **ArgoCD `.operation` revision lock is real**: any rule that says "refresh=hard" without also "patch /operation" is incomplete. Documented in issue #25.
