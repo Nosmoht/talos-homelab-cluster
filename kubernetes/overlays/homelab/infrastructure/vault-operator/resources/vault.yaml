@@ -117,7 +117,6 @@ spec:
     platform.io/capability-consumer.gateway-backend: "true"
     platform.io/capability-consumer.monitoring-scrape: "true"
     platform.io/capability-consumer.controlplane-egress: "true"
-    platform.io/capability-provider.monitoring-scrape: "true"
   vaultContainerSpec:
     name: vault
     resources: {}
