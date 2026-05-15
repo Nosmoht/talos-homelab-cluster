@@ -15,3 +15,31 @@ resources:
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/cert-manager/namespace.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/cert-manager/_rendered/manifests.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/cert-manager/_rendered/crds.yaml
+
+# Temporary overlay-level patch: strip platform.io/capability-provider.*
+# labels from the cert-manager + cert-manager-webhook pod templates. The
+# vendored platform-base v0.1.0 ships these labels, but the homelab
+# Kyverno ClusterPolicy `pni-reserved-labels-audit` enforces a trust
+# allowlist (currently only rabbitmq + redis-operator), so cert-manager
+# pods fail admission. See docs/incident-cert-manager-2026-05-13.md.
+# Remove this patch once talos-platform-base v0.1.1+ either drops the
+# labels or the homelab policy adds cert-manager as a trusted signature.
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: cert-manager
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/labels/platform.io~1capability-provider.monitoring-scrape
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: cert-manager-webhook
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/labels/platform.io~1capability-provider.monitoring-scrape
+      - op: remove
+        path: /spec/template/metadata/labels/platform.io~1capability-provider.tls-issuance
