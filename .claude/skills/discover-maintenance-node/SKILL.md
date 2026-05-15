@@ -48,7 +48,23 @@ If the node is already under `cluster.yaml.nodes.{control_plane,gpu_workers,pi_n
 
 ### 2. Probe maintenance API
 
+**Pre-probe fail-safe (CRITICAL — protects already-operational nodes):**
+
 ```bash
+# If `talosctl version` SUCCEEDS without --insecure, the node is already
+# configured for THIS cluster. Aborting prevents the operator from
+# accidentally `talos_reset`ing an operational node — the runbook's
+# old "TLS error → reset" suggestion would have been destructive here.
+if talosctl version --nodes "$NODE_IP" >/dev/null 2>&1; then
+  echo "ABORT: node $NODE_IP is already operational (talosctl version without --insecure succeeded)."
+  echo "If you intended to onboard this node, the source-of-truth is already in the cluster."
+  echo "Use /onboard-worker-node $NODE which has P-1 resume detection; do NOT run discover directly."
+  echo "If you intended to RE-onboard (destructive reset), do so explicitly via:"
+  echo "  mcp__talos__talos_reset confirm=true nodes=[$NODE_IP] system_labels_to_wipe=[\"EPHEMERAL\"]"
+  echo "then re-run this skill once the node is back in maintenance mode."
+  exit 1
+fi
+
 # Probe 1: confirm Talos boot in maintenance mode
 talosctl version --nodes "$NODE_IP" --insecure
 
@@ -58,6 +74,8 @@ talosctl get -i disks --nodes "$NODE_IP" -o yaml
 # Probe 3: list links (find the primary NIC's MAC + driver)
 talosctl get -i links --nodes "$NODE_IP" -o yaml
 ```
+
+**Why the pre-probe fail-safe matters (2026-05-14 session learning):** when a session is interrupted between onboard skill P5 (apply) and P9 (commit), the node is **operational** but the source-of-truth `talos/nodes/<node>.yaml` may not have been written to git. Re-running this skill without the fail-safe would (a) fail Probe 1 with TLS error, (b) misroute to the runbook's `talos_reset` suggestion, (c) wipe the operational node. The parent `/onboard-worker-node` skill's P-1 resume detection is the correct path in that case; this fail-safe redirects the operator there.
 
 From Probe 2 output, select an install-disk by-path (`/dev/disk/by-path/...`) — prefer SATA over USB unless the node is USB-boot. From Probe 3 output, find the link matching `$NODE_NIC` and extract `hardwareAddr` and `driver`.
 

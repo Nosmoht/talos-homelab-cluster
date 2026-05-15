@@ -132,6 +132,19 @@ git checkout -b feat/onboard-<node>
 
 Refusing to branch from stale main avoids the team-red §3 "branch stale mid-session" trap. Skill must abort if `git pull --ff-only` fails (uncommitted changes, non-ff main divergence) — operator resolves manually.
 
+**Client version preflight (per `.claude/rules/talos-config.md §Client Version Compatibility`):**
+
+```bash
+client_ver=$(talosctl version --client 2>/dev/null | awk '/^[[:space:]]*Tag:/ {print $2; exit}')
+cluster_ver=$(grep -E '^TALOS_VERSION' talos/versions.mk | awk -F'=' '{gsub(/[[:space:]]/, "", $2); print $2}')
+test -n "$client_ver" -a -n "$cluster_ver" || { echo "version probe failed"; exit 1; }
+# client_ver must be >= cluster_ver (semver compare via sort -V)
+[ "$(printf '%s\n%s' "$cluster_ver" "$client_ver" | sort -V | head -1)" = "$cluster_ver" ] \
+  || { echo "ABORT: talosctl client $client_ver < cluster $cluster_ver — upgrade local talosctl first"; exit 1; }
+```
+
+Concrete failure mode observed (2026-05-14): `talosctl v1.9.0` against `v1.12.6` cluster produced parser errors that looked like schematic mismatches — 15 min of misdirected diagnosis before the version skew was caught.
+
 After preflight passes: write `.work/onboard-<node>/state.json` with `phase_completed: "P0"`.
 
 ### P1 cluster.yaml — register node identity
