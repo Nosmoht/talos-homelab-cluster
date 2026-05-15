@@ -1,0 +1,17 @@
+# Plugin contract for devobagmbh/kube-agent-harness v0.2 (v1 schema).
+#
+# Skills installed from this marketplace read this file at runtime to know
+# which capability providers this repo opts into. SOT for cluster identity
+# stays cluster.yaml (gitignored, per-developer); kubeconfig is not duplicated
+# here — plugin skills fall back to the $KUBECONFIG env var when omitted.
+#
+# Schema reference: ~/workspace/kube-agent-harness/docs/specs/F0001-core-helper-bundle.md
+# v1→v2 migrator (planned v0.3): bin/migrate-harness-yaml.sh per F0005.
+harness:
+  version: 1
+  gitops: argocd
+  csi: linstor
+cluster:
+  overlayPath: kubernetes/overlays/homelab
+linstor:
+  namespace: piraeus-datastore
