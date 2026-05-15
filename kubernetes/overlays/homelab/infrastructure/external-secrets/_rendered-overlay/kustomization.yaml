@@ -7,3 +7,37 @@ resources:
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/external-secrets/namespace.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/external-secrets/_rendered/manifests.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/external-secrets/_rendered/crds.yaml
+
+# Temporary overlay-level patch: strip platform.io/capability-provider.monitoring-scrape
+# label from the three external-secrets Deployment pod templates. The vendored
+# platform-base v0.1.0 ships this label, but the homelab Kyverno ClusterPolicy
+# `pni-reserved-labels-audit` enforces a trust allowlist (currently only
+# rabbitmq + redis-operator), so external-secrets pods fail admission. Same
+# defect class as cert-manager (see PR #15, docs/incident-cert-manager-2026-05-13.md).
+# Remove this patch once talos-platform-base v0.1.1+ either drops the labels
+# or the homelab policy adds external-secrets as a trusted signature.
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: external-secrets
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/labels/platform.io~1capability-provider.monitoring-scrape
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: external-secrets-cert-controller
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/labels/platform.io~1capability-provider.monitoring-scrape
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: external-secrets-webhook
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/labels/platform.io~1capability-provider.monitoring-scrape
