@@ -127,3 +127,28 @@ Four separate Make pattern-rules apply different patch stacks per role (Makefile
 - `talosctl service etcd restart` is NOT supported — etcd cannot be restarted via the Talos API; node reboot is the only path.
 - Maintenance mode: `talosctl version --insecure` (top-level flag) and `talosctl get -i <resource-type>` (subcommand-level `-i` flag) for read-only probes — verified resource-types include `disks`, `links`. `apply-config --insecure` is the write path. The MCP server (`talos-mcp`) does not support maintenance mode; it requires `talosconfig` + TLS — CLI fallback only for fresh-node discovery (see `.claude/rules/talos-mcp-first.md`).
 - `talosctl disks` is deprecated — use `get disks`, `get systemdisk`, or `get discoveredvolumes` instead.
+
+## Client Version Compatibility
+
+The local `talosctl` binary version MUST satisfy `client >= cluster`. Older clients against a newer cluster can:
+
+- Silently drop new MachineConfig fields when emitting/parsing (`apply-config`, `get machineconfig -o yaml`).
+- Reject `--insecure` probes against schematics produced by a newer Image Factory.
+- Misinterpret `talos_health` / `dmesg` / `service` output when COSI resource definitions have evolved.
+- Produce confusing errors that look like cluster bugs but are client-side parser limits.
+
+**Check before any talosctl operation:**
+
+```bash
+# Local client version
+talosctl version --client | grep -E '^Tag:|^Server:'
+
+# Cluster version target (pin)
+grep '^TALOS_VERSION' talos/versions.mk
+```
+
+If `client < cluster`: upgrade the local binary BEFORE proceeding. Homebrew (`brew upgrade siderolabs/tap/talosctl`) is the default path on macOS. If `sudo` is unavailable, drop the binary into `$HOME/.local/bin` (or any PATH-prefixed user-writable directory) and prepend to `PATH`. The MCP server (`talos-mcp`) packages its own client; the version-skew rule applies to the **CLI**, not the MCP path.
+
+**Concrete failure mode observed (2026-05-14, node-07 onboarding):** `talosctl v1.9.0` on the operator's workstation against a `v1.12.6` cluster — the CLI rejected `gen-configs` with a parser error masquerading as a schematic mismatch. Diagnosis cost ~15 min before the version check landed. The MCP path was unaffected because `talos-mcp` ships a paired client.
+
+Skills that invoke `talosctl` directly (`onboard-worker-node` P0, `discover-maintenance-node` P0) MUST include this preflight check. Skills that use only MCP tools (`talos-apply`, `talos-upgrade`) inherit the client version from the MCP server binary and need not check.
