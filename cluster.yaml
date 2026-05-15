@@ -40,6 +40,9 @@ nodes:
     - name: node-06
       ip: 192.168.2.66
       nic: enp0s31f6
+    - name: node-07
+      ip: 192.168.2.69
+      nic: enp0s31f6
 
   gpu_workers:
     - name: node-gpu-01
