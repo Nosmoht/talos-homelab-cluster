@@ -17,24 +17,6 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: argocd
-  labels:
-    app.kubernetes.io/name: argocd
-    app.kubernetes.io/instance: homelab
-    app.kubernetes.io/part-of: homelab
-    app.kubernetes.io/managed-by: argocd
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: kube-system
   labels:
     app.kubernetes.io/instance: homelab
@@ -61,63 +43,6 @@ metadata:
     platform.io/network-profile: managed
     platform.io/consume.monitoring-scrape: "true"
     platform.io/consume.controlplane-egress: "true"
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: node-feature-discovery
-  labels:
-    app.kubernetes.io/name: node-feature-discovery
-    app.kubernetes.io/instance: homelab
-    app.kubernetes.io/part-of: homelab
-    app.kubernetes.io/managed-by: argocd
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
-  labels:
-    app.kubernetes.io/name: kube-prometheus-stack
-    app.kubernetes.io/instance: homelab
-    app.kubernetes.io/part-of: homelab
-    app.kubernetes.io/managed-by: argocd
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: managed
-    platform.io/consume.storage-csi: "true"
-    platform.io/consume.s3-object: "true"
-    platform.io/consume.gateway-backend: "true"
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kyverno
-  labels:
-    app.kubernetes.io/name: kyverno
-    app.kubernetes.io/instance: homelab
-    app.kubernetes.io/part-of: homelab
-    app.kubernetes.io/managed-by: argocd
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
@@ -268,46 +193,6 @@ metadata:
     platform.io/network-interface-version: v1
     platform.io/network-profile: privileged
     pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: vault
-  labels:
-    app.kubernetes.io/name: vault-operator
-    app.kubernetes.io/instance: homelab
-    app.kubernetes.io/part-of: homelab
-    app.kubernetes.io/managed-by: argocd
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: managed
-    platform.io/consume.monitoring-scrape: "true"
-    platform.io/consume.gateway-backend: "true"
-    platform.io/consume.controlplane-egress: "true"
-    platform.io/consume.vault-secrets: "true"
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: tetragon
-  labels:
-    app.kubernetes.io/name: tetragon
-    app.kubernetes.io/instance: homelab
-    app.kubernetes.io/part-of: homelab
-    app.kubernetes.io/managed-by: argocd
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
-    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest
