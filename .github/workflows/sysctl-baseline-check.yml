@@ -25,7 +25,24 @@ jobs:
       - name: Install yq
         uses: mikefarah/yq@v4.45.1
 
+      - name: Detect baseline-source-of-truth location
+        id: detect
+        run: |
+          set -euo pipefail
+          BL=.claude/skills/kernel-param-auditor/references/role-baselines.md
+          # role-baselines.md moved upstream to providers/os-talos/skills/kernel-param-auditor/references/
+          # in kube-agent-harness; this consumer no longer hosts it after the v0.3 migration. The parity
+          # contract now lives upstream — provider plugin owns the three-layer baseline. Skip the
+          # consumer-side parity check entirely when the file is absent.
+          if [ -f "$BL" ]; then
+            echo "baseline-present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "baseline-present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::role-baselines.md not present on consumer (migrated upstream to kube-agent-harness-os-talos provider). Skipping consumer-side parity — upstream provider plugin is the single source of truth for the three-layer baseline."
+          fi
+
       - name: Extract layer baselines from role-baselines.md
+        if: steps.detect.outputs.baseline-present == 'true'
         run: |
           set -euo pipefail
           BL=.claude/skills/kernel-param-auditor/references/role-baselines.md
@@ -38,11 +55,9 @@ jobs:
           done
 
       - name: Normalize common.yaml sysctls (whitespace-collapsed tuples)
+        if: steps.detect.outputs.baseline-present == 'true'
         run: |
           set -euo pipefail
-          # Map each sysctl to { expected: "<whitespace-collapsed-value>" } so the
-          # parity script can compare values uniformly. Talos /proc/sys/ may emit
-          # tabs in tuples; common.yaml uses single spaces.
           yq e '.machine.sysctls | with_entries(.value = {"expected": (.value | sub("[\t ]+"; " "))})' \
             talos/patches/common.yaml > /tmp/common.yaml
           count=$(yq e 'keys | length' /tmp/common.yaml)
@@ -50,4 +65,5 @@ jobs:
           [ "$count" -gt 0 ] || { echo "::error::common.yaml has no sysctls"; exit 1; }
 
       - name: Parity check (4 fail conditions)
+        if: steps.detect.outputs.baseline-present == 'true'
         run: bash .github/workflows/scripts/sysctl-parity.sh
