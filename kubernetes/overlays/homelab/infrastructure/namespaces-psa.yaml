@@ -298,11 +298,25 @@ metadata:
     pod-security.kubernetes.io/warn-version: latest
 
 # ---- (2) VENDOR CO-OWNED namespaces -----------------------------------------
-# Labels (PSA, capability provide.*, network-profile) come from the
-# vendor namespace.yaml shipped by talos-platform-base v0.3.0+ via
-# the per-component Application's _rendered/manifests.yaml (SSA).
-# Stubs below exist solely so the root Application tracks the
-# namespace and never marks it for prune.
+# Stubs below exist so the root Application tracks the namespace and
+# never marks it for prune.
+#
+# Each stub carries the TWO labels that the Kyverno `pni-contract-audit`
+# ClusterPolicy requires on every namespace at admission time:
+#   platform.io/network-interface-version: v1
+#   platform.io/network-profile: <managed|privileged|restricted>
+#
+# All OTHER labels (PSA enforce/audit/warn, capability provide.*,
+# capability consume.*, app.kubernetes.io/*) are applied by the
+# per-component Application via SSA on top of these stubs from the
+# vendor namespace.yaml shipped by talos-platform-base v0.3.0+.
+#
+# Why the stubs need the two labels (and not just `metadata.name`):
+# root Application is processed before per-component Applications.
+# Kyverno's PNI admission webhook fires on root's stub apply BEFORE
+# the per-component SSA merge can add the labels. Bare stubs are
+# rejected. The two labels here satisfy the contract minimum;
+# vendor SSA fills in the rest.
 
 ---
 apiVersion: v1
@@ -311,6 +325,9 @@ metadata:
   name: argocd
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: privileged
 ---
 apiVersion: v1
 kind: Namespace
@@ -318,6 +335,9 @@ metadata:
   name: monitoring
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: managed
 ---
 apiVersion: v1
 kind: Namespace
@@ -325,6 +345,9 @@ metadata:
   name: kyverno
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: privileged
 ---
 apiVersion: v1
 kind: Namespace
@@ -332,6 +355,9 @@ metadata:
   name: node-feature-discovery
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: privileged
 ---
 apiVersion: v1
 kind: Namespace
@@ -339,6 +365,9 @@ metadata:
   name: tetragon
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: privileged
 ---
 apiVersion: v1
 kind: Namespace
@@ -346,3 +375,6 @@ metadata:
   name: vault
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: managed
