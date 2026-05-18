@@ -1,45 +1,34 @@
-# namespaces-psa.yaml — namespace bootstrap + PSA label declaration
+# namespaces-psa.yaml — TENANT namespace declarations only
 #
-# OWNERSHIP CONTRACT:
-# - This file is consumed by the top-level `root` Application
-#   (kubernetes/overlays/homelab/infrastructure/kustomization.yaml).
-# - Two distinct ownership models for the namespaces below:
+# OWNERSHIP CONTRACT (Architecture C, post-incident 2026-05-18):
+# This file is consumed by the top-level `root` Application
+# (kubernetes/overlays/homelab/infrastructure/kustomization.yaml).
 #
-#   (1) STAND-ALONE namespaces (the first 13 entries below).
-#       The platform-base ships NO vendor namespace.yaml for these.
-#       Labels (PSA, capability consume.*) declared here are the
-#       sole source of truth.
+# Only TENANT namespaces appear here — namespaces this cluster's
+# consumer overlay owns end-to-end, for which talos-platform-base ships
+# no vendor namespace.yaml. Labels (PSA, capability consume.*) declared
+# here are the sole source of truth for these namespaces.
 #
-#   (2) VENDOR CO-OWNED namespaces (the last 6 entries below).
-#       The platform-base v0.3.0+ ships a vendor namespace.yaml in
-#       kubernetes/base/infrastructure/<component>/namespace.yaml
-#       that carries PSA + capability labels.
-#       Per-component consumer Applications consume that vendor file
-#       via their _rendered/ output and apply the labels via SSA.
-#       The entries here are STUBS — name only, no labels — so the
-#       root Application sees the namespace in its source tree and
-#       does NOT mark it for prune. Labels come from the vendor copy.
+# PLATFORM namespaces (those with a vendor namespace.yaml in
+# vendor/base/kubernetes/base/infrastructure/<component>/namespace.yaml)
+# are NOT in this file. Each is owned by its per-component Application,
+# which sources vendor namespace.yaml via _rendered/manifests.yaml.
+# Adding such a namespace here would create the double-tracking conflict
+# documented in talos-platform-base ADR
+# "Namespace Ownership in the Rendered Manifests Pattern".
 #
-# PRUNE-SAFETY ANNOTATION (`argocd.argoproj.io/sync-options: Prune=false`):
-# Applied to every Namespace below. Reason: on 2026-05-18 a previous
-# attempt to shrink this file removed 6 vendor-co-owned entries.
-# The root Application saw the resources disappear from its source
-# and pruned them — including Namespace `argocd` itself, which
-# cascade-deleted all ArgoCD Applications. The Prune=false annotation
-# is the forward-fix: even if a namespace is later removed from this
-# file, the live resource is preserved. Manual NS cleanup remains
-# possible via kubectl.
-#
-# See: incident notes 2026-05-18, talos-platform-base#38, this-repo#36.
+# Exception: the `argocd` namespace remains here as a transitional
+# entry until the argocd Application is migrated to the Rendered
+# Manifests Pattern. The argocd App currently does not consume vendor
+# namespace.yaml via its tracked source, so transferring tracking-id
+# to it would cause it to prune the namespace.
 
-# ---- (1) STAND-ALONE namespaces ---------------------------------------------
+# ---- TENANT namespaces ------------------------------------------------------
 
 apiVersion: v1
 kind: Namespace
 metadata:
   name: default
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/instance: homelab
     app.kubernetes.io/managed-by: argocd
@@ -56,8 +45,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: kube-system
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/instance: homelab
     app.kubernetes.io/managed-by: argocd
@@ -74,8 +61,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cnpg-system
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: cloudnative-pg
     app.kubernetes.io/instance: homelab
@@ -96,8 +81,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: redis-system
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: redis-operator
     app.kubernetes.io/instance: homelab
@@ -118,8 +101,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: kafka
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: strimzi-kafka-operator
     app.kubernetes.io/instance: homelab
@@ -140,8 +121,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: kubevirt
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: kubevirt
     app.kubernetes.io/instance: homelab
@@ -160,8 +139,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cdi
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: cdi
     app.kubernetes.io/instance: homelab
@@ -180,8 +157,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: redis-operator
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: redis-operator
     app.kubernetes.io/instance: homelab
@@ -201,8 +176,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: nvidia-device-plugin
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: nvidia-device-plugin
     app.kubernetes.io/instance: homelab
@@ -221,8 +194,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: kagent
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: kagent
     app.kubernetes.io/instance: homelab
@@ -241,8 +212,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cilium-secrets
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: cilium
     app.kubernetes.io/instance: homelab
@@ -261,8 +230,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: omada-controller
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: omada-controller
     app.kubernetes.io/instance: homelab
@@ -281,8 +248,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: public-ingress
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
   labels:
     app.kubernetes.io/name: pi-public-ingress
     app.kubernetes.io/instance: homelab
@@ -297,27 +262,17 @@ metadata:
     pod-security.kubernetes.io/warn: baseline
     pod-security.kubernetes.io/warn-version: latest
 
-# ---- (2) VENDOR CO-OWNED namespaces -----------------------------------------
-# Stubs below exist so the root Application tracks the namespace and
-# never marks it for prune.
+# ---- TRANSITIONAL: argocd namespace -----------------------------------------
+# The argocd Application is on the legacy non-Rendered-Manifests pattern.
+# Its tracked source does NOT include vendor namespace.yaml. Transferring
+# tracking-id to the argocd App would cause it to prune Namespace/argocd
+# on next sync. This stub stays under root tracking-id until the argocd
+# App is migrated to the Rendered Manifests Pattern (separate work).
 #
-# Each stub carries the TWO labels that the Kyverno `pni-contract-audit`
-# ClusterPolicy requires on every namespace at admission time:
-#   platform.io/network-interface-version: v1
-#   platform.io/network-profile: <managed|privileged|restricted>
-#
-# All OTHER labels (PSA enforce/audit/warn, capability provide.*,
-# capability consume.*, app.kubernetes.io/*) are applied by the
-# per-component Application via SSA on top of these stubs from the
-# vendor namespace.yaml shipped by talos-platform-base v0.3.0+.
-#
-# Why the stubs need the two labels (and not just `metadata.name`):
-# root Application is processed before per-component Applications.
-# Kyverno's PNI admission webhook fires on root's stub apply BEFORE
-# the per-component SSA merge can add the labels. Bare stubs are
-# rejected. The two labels here satisfy the contract minimum;
-# vendor SSA fills in the rest.
-
+# `Prune=false` annotation: kept ONLY for this transitional entry.
+# Without it, the same source-edit-as-prune-intent bug class that caused
+# the 2026-05-18 incident could re-fire if this entry is touched while
+# argocd App is still on the legacy pattern.
 ---
 apiVersion: v1
 kind: Namespace
@@ -328,53 +283,3 @@ metadata:
   labels:
     platform.io/network-interface-version: v1
     platform.io/network-profile: privileged
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
-  labels:
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: managed
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kyverno
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
-  labels:
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: node-feature-discovery
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
-  labels:
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: tetragon
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
-  labels:
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: vault
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
-  labels:
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: managed
