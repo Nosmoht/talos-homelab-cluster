@@ -1,0 +1,60 @@
+# Stage-3 input. argocd is sole owner of its namespace (Architektur C).
+# Vendor base ships argocd/namespace.yaml + _rendered manifests; this
+# overlay adds cluster-specific HTTPRoute and patches the three sites
+# in vendor manifests that carry the default URL "argocd.example.com":
+#   - ConfigMap argocd-cm           data.url
+#   - ConfigMap argocd-server       data.context.argocdUrl (notifications)
+#   - Certificate argocd-server     spec.commonName + spec.dnsNames
+# See vendor/base/docs/adr-namespace-ownership-rendered-manifests.md and
+# docs/argocd-self-cutover-runbook.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/argocd/namespace.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/argocd/_rendered/manifests.yaml
+  - ../../../../../../vendor/base/kubernetes/base/infrastructure/argocd/_rendered/crds.yaml
+  - httproute.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: argocd-cm
+      namespace: argocd
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cm
+        namespace: argocd
+      data:
+        url: https://argocd.lan.homelab.ntbc.io
+  - target:
+      kind: ConfigMap
+      name: argocd-notifications-cm
+      namespace: argocd
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-notifications-cm
+        namespace: argocd
+      data:
+        context: |
+          argocdUrl: https://argocd.lan.homelab.ntbc.io
+  - target:
+      group: cert-manager.io
+      version: v1
+      kind: Certificate
+      name: argocd-server
+      namespace: argocd
+    patch: |-
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: argocd-server
+        namespace: argocd
+      spec:
+        commonName: argocd.lan.homelab.ntbc.io
+        dnsNames:
+          - argocd.lan.homelab.ntbc.io
