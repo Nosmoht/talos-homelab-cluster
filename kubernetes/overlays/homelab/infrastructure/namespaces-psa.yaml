@@ -16,12 +16,6 @@
 # Adding such a namespace here would create the double-tracking conflict
 # documented in talos-platform-base ADR
 # "Namespace Ownership in the Rendered Manifests Pattern".
-#
-# Exception: the `argocd` namespace remains here as a transitional
-# entry until the argocd Application is migrated to the Rendered
-# Manifests Pattern. The argocd App currently does not consume vendor
-# namespace.yaml via its tracked source, so transferring tracking-id
-# to it would cause it to prune the namespace.
 
 # ---- TENANT namespaces ------------------------------------------------------
 
@@ -261,25 +255,3 @@ metadata:
     pod-security.kubernetes.io/audit-version: latest
     pod-security.kubernetes.io/warn: baseline
     pod-security.kubernetes.io/warn-version: latest
-
-# ---- TRANSITIONAL: argocd namespace -----------------------------------------
-# The argocd Application is on the legacy non-Rendered-Manifests pattern.
-# Its tracked source does NOT include vendor namespace.yaml. Transferring
-# tracking-id to the argocd App would cause it to prune Namespace/argocd
-# on next sync. This stub stays under root tracking-id until the argocd
-# App is migrated to the Rendered Manifests Pattern (separate work).
-#
-# `Prune=false` annotation: kept ONLY for this transitional entry.
-# Without it, the same source-edit-as-prune-intent bug class that caused
-# the 2026-05-18 incident could re-fire if this entry is touched while
-# argocd App is still on the legacy pattern.
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: argocd
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=false
-  labels:
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: privileged
