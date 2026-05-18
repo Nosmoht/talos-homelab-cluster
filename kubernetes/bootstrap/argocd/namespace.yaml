@@ -7,6 +7,8 @@ metadata:
     app.kubernetes.io/instance: homelab
     app.kubernetes.io/part-of: homelab
     app.kubernetes.io/managed-by: bootstrap
+    platform.io/network-interface-version: v1
+    platform.io/network-profile: privileged
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
