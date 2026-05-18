@@ -29,6 +29,14 @@ jobs:
         run: |
           set -euo pipefail
           BL=.claude/skills/kernel-param-auditor/references/role-baselines.md
+          # role-baselines.md moved upstream to providers/os-talos/skills/kernel-param-auditor/references/ in
+          # kube-agent-harness; this consumer no longer hosts it. The parity check has no source-of-truth on
+          # the consumer side after the migration. Skip cleanly when the file is absent — the upstream
+          # provider plugin is now the single source of truth for the three-layer baseline.
+          if [ ! -f "$BL" ]; then
+            echo "::notice::role-baselines.md not present on consumer (migrated upstream to kube-agent-harness-os-talos provider). Parity check now lives upstream; skipping consumer-side parity."
+            exit 0
+          fi
           for layer in 1 2 3; do
             awk "/^# layer${layer}-baseline-yaml-start$/,/^# layer${layer}-baseline-yaml-end$/" "$BL" \
               | sed '1d;$d' | yq e '.sysctls' - > "/tmp/layer${layer}.yaml"
