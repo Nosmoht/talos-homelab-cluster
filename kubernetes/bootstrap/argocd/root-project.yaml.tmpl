@@ -16,6 +16,13 @@ spec:
   destinations:
     - namespace: argocd
       server: https://kubernetes.default.svc
+    # ConfigMap kyverno/cluster-config is shipped via the top-level
+    # overlay (kubernetes/overlays/homelab/infrastructure/platform-network-interface/
+    # kustomization.yaml). Until that resource moves into the
+    # platform-network-interface Application's own source, root-bootstrap
+    # must be allowed to deploy into the kyverno namespace.
+    - namespace: kyverno
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -24,3 +31,6 @@ spec:
       kind: AppProject
     - group: argoproj.io
       kind: Application
+    # ConfigMap needed for kyverno/cluster-config (see destinations note).
+    - group: ""
+      kind: ConfigMap
