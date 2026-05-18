@@ -1,22 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    app.kubernetes.io/managed-by: argocd
-    app.kubernetes.io/name: vault
-    platform.io/network-interface-version: v1
-    platform.io/network-profile: managed
-    platform.io/provide.admission-webhook: "true"
-    platform.io/provide.monitoring-scrape: "true"
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
-  name: vault
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: controller-manager

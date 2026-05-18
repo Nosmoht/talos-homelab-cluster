@@ -1,14 +1,10 @@
-# Stage-3 input. NS `monitoring` IS in namespaces-psa.yaml AND vendor ships
-# platform.io/provide.logging-ship + monitoring-scrape labels. We include
-# vendor namespace.yaml here to preserve the capability-provider trust
-# anchors. ArgoCD treats this as shared resource ownership with
-# App-of-Apps; SSA merges labels by field owner.
-# Phase C.4 / D will consolidate this by either moving provide.* labels
-# into namespaces-psa.yaml or factoring shared namespaces into a dedicated
-# namespaces App.
+# Stage-3 input. loki is a secondary tenant of the monitoring namespace.
+# Namespace ownership belongs to kube-prometheus-stack (sole shipper of
+# vendor monitoring/namespace.yaml in base v0.4.0+). loki deploys INTO
+# the existing namespace without claiming ownership.
+# See vendor/base/docs/adr-namespace-ownership-rendered-manifests.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../../../../../vendor/base/kubernetes/base/infrastructure/loki/namespace.yaml
   - ../../../../../../vendor/base/kubernetes/base/infrastructure/loki/_rendered/manifests.yaml
