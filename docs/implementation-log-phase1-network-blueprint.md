@@ -64,7 +64,7 @@ Deployed in two passes per SRE recommendation:
 **Files:** `kubernetes/base/infrastructure/platform-network-interface/resources/kyverno-clusterpolicy-pni-*-enforce.yaml`
 
 Three ClusterPolicies transitioned from `Audit` to `Enforce`:
-- `pni-contract-audit` — requires `platform.io/network-interface-version=v1` + `platform.io/network-profile` on namespaces
+- `pni-contract-enforce` (formerly `pni-contract-audit`) — requires `platform.io/network-interface-version=v1` + `platform.io/network-profile` on namespaces
 - `pni-reserved-labels-audit` — blocks provider-reserved labels on consumer resources
 - `pni-capability-validation-audit` — validates `consume.*` labels against 13-capability catalog
 
