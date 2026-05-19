@@ -65,6 +65,22 @@ jobs:
           assert ksops       "$(tv ksops)"       "$KSOPS_VERSION"
           [ "$fail" -eq 0 ] || { echo "::error::tool-version drift detected — sync .tool-versions and workflow env"; exit 1; }
 
+      - name: Install yq (early — required by base-pin drift gate)
+        # Inlined install so the drift gate can fail-fast before any heavy
+        # render step. Pinned to YQ_VERSION (single source of truth).
+        run: |
+          set -eu
+          sudo wget -q "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64" -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Base-pin drift gate
+        # Fail-closed gate documented in docs/adr-multi-repo-platform-split.md
+        # and docs/base-pin-drift-analysis.md. Ensures .base-version (Day-0)
+        # and every ArgoCD Application targetRevision for talos-platform-base
+        # (Day-2) move in lock-step.
+        run: ./scripts/check-base-pin-drift.sh
+
       - name: Enforce Talos and Cilium ownership boundaries
         run: |
           set -eu
