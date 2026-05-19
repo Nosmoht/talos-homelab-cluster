@@ -1,7 +1,7 @@
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: pni-contract-audit
+  name: pni-contract-enforce
   labels:
     app.kubernetes.io/name: platform-network-interface
     app.kubernetes.io/component: policy-governance

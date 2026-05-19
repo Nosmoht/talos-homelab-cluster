@@ -167,7 +167,7 @@ during the RabbitMQ rollout.
 
 Operators distributed as raw upstream YAML (e.g. KubeVirt, RabbitMQ) ship a
 `Namespace` resource that **lacks the PNI contract labels**. The namespace is
-rejected by `pni-contract-audit` on first sync with
+rejected by `pni-contract-enforce` (formerly `pni-contract-audit`) on first sync with
 `Namespaces must set platform.io/network-interface-version=v1`.
 
 Patch via kustomize at the overlay level — do not edit the vendored YAML so
