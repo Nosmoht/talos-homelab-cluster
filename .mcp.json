@@ -8,7 +8,10 @@
     "kubernetes-mcp-server": {
       "type": "stdio",
       "command": "kubernetes-mcp-server",
-      "args": ["--read-only", "--disable-multi-cluster"]
+      "args": [
+        "--read-only",
+        "--disable-multi-cluster"
+      ]
     },
     "talos": {
       "type": "stdio",
@@ -16,7 +19,10 @@
       "args": [],
       "env": {
         "TALOS_CONTEXT": "homelab",
-        "TALOS_MCP_ALLOWED_PATHS": "/proc,/sys,/var/log,/run,/usr/local/etc,/etc/os-release"
+        "TALOS_MCP_ALLOWED_PATHS": "/proc,/sys,/var/log,/run,/usr/local/etc,/etc/os-release",
+        "TALOS_MCP_ALLOWED_NODES": "192.168.2.61,192.168.2.62,192.168.2.63,192.168.2.64,192.168.2.65,192.168.2.66,192.168.2.67,192.168.2.68,192.168.2.69",
+        "TALOS_MCP_ENABLE_INSECURE": "true",
+        "TALOS_MCP_INSECURE_ALLOWED_NODES": "192.168.2.0/24"
       }
     }
   }
